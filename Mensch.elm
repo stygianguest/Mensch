@@ -1,3 +1,5 @@
+import Automaton(Automaton, run, pure)
+import Graphics.Input(customButton)
 
 -- Game info
 
@@ -11,18 +13,32 @@ startPositions = map ((*) sTARTOFFSET) (upTo pLAYERCNT)
 endPositions =
     map (\i -> (i-1+bOARDSIZE) `mod` bOARDSIZE) startPositions
 
+-- players are numbered [0,..,pLAYERCNT-1]
+-- die possibilities are [1,...,dIESIZE]
+-- tokens are numbered [0,...,tOKENCNT-1]
+
+--------------------------------------------------------------------------------
 -- Game logic
+--------------------------------------------------------------------------------
+
+-- token locations such that
+-- gs.relLocs owner token = relLoc
+-- where relLoc is the location of a token relative to its start position such that
+-- * if relLoc < 0, the token has not yet entered the game
+-- * if relLoc == 0,  it is at the start position of owner 
+-- * if relLoc >= bOARDSIZE, it is in the home row
 
 type GameState = 
-    { player : Int 
-    , die : Int
-    , positions : [[Int]]
+    { player : Int -- curren player
+    , die : Int -- die FIXME: remove from gamestate
+    , relLocs : Int -> Int -> Int -- player -> token -> relpos
     }
 
+startState : GameState
 startState = 
     { player = 0 
-    , die = 0--randomRs (1,dIESIZE) (mkStdGen 42)
-    , positions = repeatN pLAYERCNT (repeatN tOKENCNT 0)
+    , die = 0 --randomRs (1,dIESIZE) (mkStdGen 42)
+    , relLocs = \owner token -> -token - 1
     }
 
 isOut p = p < 0
@@ -38,8 +54,25 @@ isOnBoard t = not (isOut t || isHome t)
 target : GameState -> Int -> Int
 target gs t = position gs t + gs.die
 
+positions : GameState -> [[Int]]
+positions gs =
+    map (\o -> map (gs.relLocs o) (upTo tOKENCNT)) (upTo pLAYERCNT)
+
+-- projected view on token positions for given player
+-- who considers his start place 0
+--FIXME: is currently wrong and unused anyway
+--projectTokens : (Int -> Int -> Int) -> Int -> Int -> Int -> Int
+--projectTokens relLocs player owner token = 
+--    let location = relLocs owner token
+--        playerOffset = sTARTOFFSET * ((player + owner) `mod` pLAYERCNT)
+--        relLoc = (location + playerOffset) `mod` (bOARDSIZE+tOKENCNT)
+--    in if location <= 0 then location else location + relLoc
+
+absLoc : Int -> Int -> Int
+absLoc player relLoc = (sTARTOFFSET * player + relLoc) `mod` bOARDSIZE
+
 position : GameState -> Int -> Int
-position gs t = (gs.positions !! gs.player) !! t
+position gs = gs.relLocs gs.player
 
 update : Int -> (a->a) -> [a] -> [a]
 update i f lst = 
@@ -56,7 +89,7 @@ occupier gs p = case filter ((==) p . snd) (boardPositions gs) of
     otherwise -> head [] -- "Multiple tokens at same position?!"
 
 hasWon : GameState -> Bool
-hasWon gs = all isHome (gs.positions !! gs.player)
+hasWon gs = all (isHome . gs.relLocs gs.player) (upTo tOKENCNT)
 
 -- return board from the perspective of the current player
 -- i.e. a finite list ending in his homerow
@@ -68,7 +101,7 @@ boardPositions gs =
         <| filter (\(o,p) -> isOnBoard p || o == gs.player) -- remove tokens we cannot touch
         <| concat
         <| zipWith (zip . repeatN tOKENCNT) (upTo pLAYERCNT) -- associate tokens with owners
-        <| gs.positions
+        <| positions gs
 
 canEnter : GameState -> Bool
 canEnter gs =
@@ -76,7 +109,7 @@ canEnter gs =
     in hasOutToks gs && snd (occupier gs startpos) /= gs.player
 
 hasOutToks : GameState -> Bool
-hasOutToks gs = any isOut (gs.positions !! gs.player)
+hasOutToks gs = any (isOut . gs.relLocs gs.player) (upTo tOKENCNT)
 
 canMove : GameState -> Int -> Bool
 canMove gs t = 
@@ -116,22 +149,24 @@ canMove gs t =
 --pathProb = foldr next [1,0,0,0,0] [0..bOARDSIZE]
 --    where next _ lst = sum (map (/5) (take 5 lst)) : lst
 
+--------------------------------------------------------------------------------
 -- Board drawing
+--------------------------------------------------------------------------------
 
 pLACESIZE = 10.0
-token col = group
+tokenEl col = group
     [ filled black (circle (pLACESIZE/1.8))
     , alpha 0.9 <| filled col (circle (pLACESIZE/1.8))
     , outlined {defaultLine | width <- 1.5} (circle (pLACESIZE/1.8))
     ]
-place = outlined defaultLine (circle pLACESIZE)
-startPlace col = group [filled col (circle pLACESIZE), place]
-homePlace col = group [filled col (circle pLACESIZE), place]
+placeEl = outlined defaultLine (circle pLACESIZE)
+startPlaceEl col = group [filled col (circle pLACESIZE), placeEl]
+homePlaceEl col = group [filled col (circle pLACESIZE), placeEl]
 
 placeShadow : Color -> Form
 placeShadow col = alpha 0.3 <| filled col (circle pLACESIZE)
 
-pColors = [red, blue, yellow, green]
+playerColors = [red, blue, yellow, green]
 
 boardPlaceStep = step (pLACESIZE * 3)
 boardPlaceLCorner = turn (degrees -(360/pLAYERCNT))
@@ -161,8 +196,96 @@ homeRowCoords = map (\s -> drop 1 <| mkPath s homeRowTraj) endCoords
 startPlacesCoords =
     map (\s -> drop 1 <| mkPath s startPlacesTraj) startCoords
 
+tokenCoord : (Int -> Int -> Int) -> Int -> Int -> Corner
+tokenCoord relLocs player token =
+    let loc = relLocs player token 
+    in if  | loc < 0          -> (startPlacesCoords !! player) !! (-loc - 1)
+           | loc >= bOARDSIZE -> (homeRowCoords !! player) !! (loc - bOARDSIZE)
+           | otherwise        -> boardCoords !! absLoc player loc
 
+tokenCoords : (Int -> Int -> Int) -> [[Corner]]
+tokenCoords relLocs = 
+    map (\f-> map (\t->f t) (upTo tOKENCNT))
+    <| map (tokenCoord relLocs) (upTo pLAYERCNT)
+    --or, with list comprehensions,
+    --[[relLocs p t] t <- upTo tOKENCNT| p <- upTo pLAYERCNT]
+
+drawGame : (Int -> Int -> Element) -> GameState -> Element
+drawGame toks gs = -- flow down []
+    collage 700 700 <|
+        zipWith drawAt startCoords (map placeShadow playerColors)
+        ++ drawAlong boardCoords placeEl
+        ++ concat (zipWith drawAlong homeRowCoords (map homePlaceEl playerColors))
+        ++ concat (zipWith drawAlong startPlacesCoords (map startPlaceEl playerColors))
+        ++ concat (zipWith drawAlong (tokenCoords gs.relLocs) (map tokenEl playerColors))
+
+--------------------------------------------------------------------------------
+-- Main / impure
+--------------------------------------------------------------------------------
+
+data InputCmd = EndOfTurn | MoveToken Int Int | CancelMove
+
+execGame : GameState -> Automaton InputCmd GameState
+execGame gs = pure (\i -> gs)
+
+
+main = 
+    let signals = snd `map` concat tokenTable
+        createTokenTableRow p = createToken p `map` upTo tOKENCNT
+        tokenTable = createTokenTableRow `map` upTo pLAYERCNT
+        tokenLookup p t = fst <| (tokenTable!!p)!!t
+    in drawGame tokenLookup <~ runState execGame startState (merges signals)
+
+--careful this isn't side-effect free!!!
+createToken : Int -> Int -> (Element, Signal InputCmd)
+createToken owner token =
+    let (elem, sig) = customButton buttonEl buttonEl buttonEl
+        --FIXME: using collage only to 'cast' Form to Element :/
+        buttonEl = collage 10 10 [tokenEl (playerColors !! owner)]
+        movesig = sig `sampleOn` constant (MoveToken owner token)
+    in (elem, movesig)
+
+
+--test  = [markdown| sadf |]
+
+--------------------------------------------------------------------------------
+-- Generic util
+--------------------------------------------------------------------------------
+
+runState : (b -> Automaton a b) -> b -> Signal a -> Signal b
+runState aut s = run (aut s) s
+
+(!!) : [a] -> Int -> a
+lst !! i = case lst of
+    hd :: tl    -> if i <= 0 then hd else tl !! (i-1)
+    []          -> head []
+
+upTo : Int -> [Int]
+upTo cnt = scanl (+) 0 (repeatN (cnt-1) 1)
+
+splitAt : Int -> [a] -> ([a],[a])
+splitAt cnt lst =
+    if cnt > 0 then case lst of
+                    [] -> ([], [])
+                    hd::tl ->
+                        let (before, after) = splitAt (cnt-1) tl
+                        in (hd::before, after)
+               else ([], lst)
+
+--FIXME: handle backward ranges?
+enumFromTo : Int -> Int -> [Int]
+enumFromTo from to = scanl (+) from (repeatN (to-from) 1)
+
+repeatN : Int -> a -> [a]
+repeatN n elem = 
+  if n > 0 then elem :: repeatN (n-1) elem else []
+
+loopN : Int -> [a] -> [a]
+loopN n = concat . repeatN n
+
+--------------------------------------------------------------------------------
 -- Draw utils
+--------------------------------------------------------------------------------
 
 --TODO: should accept a path, not trajectory
 drawAlong : [Corner] -> Form -> [Form]
@@ -196,54 +319,3 @@ turn angle {x,y,a} = {x=x, y=y, a=a+angle}
 
 turnLeft = turn (degrees -90)
 turnRight = turn (degrees 90)
-
--- Main
-
-main = flow down 
-    [ drawGame startState
-    --, asText startCoords
-    ]
-
-drawGame : GameState -> Element
-drawGame gs =
-    collage 700 700 <|
-        zipWith drawAt startCoords (map placeShadow pColors)
-        ++ drawAlong boardCoords place
-        ++ concat (zipWith drawAlong homeRowCoords (map homePlace pColors))
-        ++ concat (zipWith drawAlong startPlacesCoords (map startPlace pColors))
-        ++ zipWith drawAt startCoords (map token pColors)
-        -- ++ zipWith drawAt startCoords (map token pColors)
-
-
---test  = [markdown| sadf |]
-
-
--- Generic util
-
-(!!) : [a] -> Int -> a
-lst !! i = case lst of
-    hd :: tl    -> if i <= 0 then hd else tl !! (i-1)
-    []          -> head []
-
-upTo : Int -> [Int]
-upTo cnt = scanl (+) 0 (repeatN (cnt-1) 1)
-
-splitAt : Int -> [a] -> ([a],[a])
-splitAt cnt lst =
-    if cnt > 0 then case lst of
-                    [] -> ([], [])
-                    hd::tl ->
-                        let (before, after) = splitAt (cnt-1) tl
-                        in (hd::before, after)
-               else ([], lst)
-
---FIXME: handle backward ranges?
-enumFromTo : Int -> Int -> [Int]
-enumFromTo from to = scanl (+) from (repeatN (to-from) 1)
-
-repeatN : Int -> a -> [a]
-repeatN n elem = 
-  if n > 0 then elem :: repeatN (n-1) elem else []
-
-loopN : Int -> [a] -> [a]
-loopN n = concat . repeatN n
