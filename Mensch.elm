@@ -1,5 +1,6 @@
 import Automaton(Automaton, run, pure)
 import Graphics.Input(customButton)
+import Mouse(clicks, position)
 
 -- Game info
 
@@ -41,6 +42,11 @@ startState =
     , relLocs = \owner token -> -token - 1
     }
 
+-- yeah, this is bad
+modifyLoc : Int -> Int -> (Int -> Int) -> (Int -> Int -> Int) -> (Int -> Int -> Int)
+modifyLoc p t f relLocs =
+    \p' t' -> (if p == p' && t == t' then f else id) (relLocs p' t')
+
 isOut p = p < 0
 isHome p = p > bOARDSIZE
 isOnBoard t = not (isOut t || isHome t)
@@ -52,7 +58,7 @@ isOnBoard t = not (isOut t || isHome t)
 -- because it will happily move pieces past the end and enter the board on
 -- throws other than six
 target : GameState -> Int -> Int
-target gs t = position gs t + gs.die
+target gs t = tokpos gs t + gs.die
 
 positions : GameState -> [[Int]]
 positions gs =
@@ -71,8 +77,8 @@ positions gs =
 absLoc : Int -> Int -> Int
 absLoc player relLoc = (sTARTOFFSET * player + relLoc) `mod` bOARDSIZE
 
-position : GameState -> Int -> Int
-position gs = gs.relLocs gs.player
+tokpos : GameState -> Int -> Int
+tokpos gs = gs.relLocs gs.player
 
 update : Int -> (a->a) -> [a] -> [a]
 update i f lst = 
@@ -113,9 +119,9 @@ hasOutToks gs = any (isOut . gs.relLocs gs.player) (upTo tOKENCNT)
 
 canMove : GameState -> Int -> Bool
 canMove gs t = 
-    canEnter gs && isOut (position gs t) && gs.die == dIESIZE
+    canEnter gs && isOut (tokpos gs t) && gs.die == dIESIZE
     || not (canEnter gs || hasOutToks gs || gs.die == dIESIZE) 
-        && not (isOut (position gs t)) 
+        && not (isOut (tokpos gs t)) 
         && target gs t <= bOARDSIZE+tOKENCNT
         && snd (occupier gs (target gs t)) /= gs.player
 
@@ -123,7 +129,7 @@ canMove gs t =
 --move gs t
 --  | hasWon gs = gs
 --        { player = mod (1 + player gs) pLAYERCNT }
---  | canEnter gs && isOut (position gs t) && die gs == dIESIZE = gs
+--  | canEnter gs && isOut (tokpos gs t) && die gs == dIESIZE = gs
 --        { player = mod (1 + player gs) pLAYERCNT
 --        , dies = tail (dies gs)
 --        -- gs.positions[gs.player][t] += gs.die
@@ -211,38 +217,50 @@ tokenCoords relLocs =
     --[[relLocs p t] t <- upTo tOKENCNT| p <- upTo pLAYERCNT]
 
 drawGame : (Int -> Int -> Element) -> GameState -> Element
-drawGame toks gs = -- flow down []
+drawGame tokEls gs = flow right [
     collage 700 700 <|
-        zipWith drawAt startCoords (map placeShadow playerColors)
-        ++ drawAlong boardCoords placeEl
-        ++ concat (zipWith drawAlong homeRowCoords (map homePlaceEl playerColors))
-        ++ concat (zipWith drawAlong startPlacesCoords (map startPlaceEl playerColors))
-        ++ concat (zipWith drawAlong (tokenCoords gs.relLocs) (map tokenEl playerColors))
+        zipWith drawAt (map placeShadow playerColors) startCoords 
+        ++ drawAlong placeEl boardCoords
+        ++ concat (zipWith drawAlong (map homePlaceEl playerColors) homeRowCoords)
+        ++ concat (zipWith drawAlong (map startPlaceEl playerColors) startPlacesCoords)
+        ++ concat (zipWith drawAlong (map tokenEl playerColors) (tokenCoords gs.relLocs))
+        ++ drawTokens tokEls gs
+    , flow down <| map (uncurry tokEls) (upTo pLAYERCNT `combinations` upTo tOKENCNT)
+    ] 
+
+
+drawTokens : (Int -> Int -> Element) -> GameState -> [Form]
+drawTokens tokenEls gs =
+    map (\(p,t) -> toForm (tokenEls p t) `drawAt` tokenCoord gs.relLocs p t)
+        (upTo pLAYERCNT `combinations` upTo tOKENCNT)
+
 
 --------------------------------------------------------------------------------
 -- Main / impure
 --------------------------------------------------------------------------------
 
-data InputCmd = EndOfTurn | MoveToken Int Int | CancelMove
+data InputCmd = EndOfTurn | MoveToken Int Int | CancelMove | NoCmd
 
-execGame : GameState -> Automaton InputCmd GameState
-execGame gs = pure (\i -> gs)
-
+execCmd : InputCmd -> GameState -> GameState
+execCmd cmd gs = 
+    case cmd of
+    MoveToken p t -> { gs | relLocs <- modifyLoc p t ((+)1) gs.relLocs }
+    otherwise -> gs
 
 main = 
-    let signals = snd `map` concat tokenTable
+    let cmds = merges (snd `map` concat tokenTable)
         createTokenTableRow p = createToken p `map` upTo tOKENCNT
         tokenTable = createTokenTableRow `map` upTo pLAYERCNT
         tokenLookup p t = fst <| (tokenTable!!p)!!t
-    in drawGame tokenLookup <~ runState execGame startState (merges signals)
+    in drawGame tokenLookup <~ foldp execCmd startState cmds
 
 --careful this isn't side-effect free!!!
 createToken : Int -> Int -> (Element, Signal InputCmd)
 createToken owner token =
     let (elem, sig) = customButton buttonEl buttonEl buttonEl
         --FIXME: using collage only to 'cast' Form to Element :/
-        buttonEl = collage 10 10 [tokenEl (playerColors !! owner)]
-        movesig = sig `sampleOn` constant (MoveToken owner token)
+        buttonEl = collage 20 20 [tokenEl (playerColors !! owner)]
+        movesig = constant (MoveToken owner token) `on` sig
     in (elem, movesig)
 
 
@@ -251,6 +269,8 @@ createToken owner token =
 --------------------------------------------------------------------------------
 -- Generic util
 --------------------------------------------------------------------------------
+
+on sig clock = sampleOn clock sig
 
 runState : (b -> Automaton a b) -> b -> Signal a -> Signal b
 runState aut s = run (aut s) s
@@ -283,17 +303,23 @@ repeatN n elem =
 loopN : Int -> [a] -> [a]
 loopN n = concat . repeatN n
 
+combinations : [a] -> [b] -> [(a,b)]
+combinations lstA lstB =
+    case lstA of
+        []          -> []
+        hd :: tl    -> map ((,) hd) lstB ++ combinations tl lstB
+
 --------------------------------------------------------------------------------
 -- Draw utils
 --------------------------------------------------------------------------------
 
 --TODO: should accept a path, not trajectory
-drawAlong : [Corner] -> Form -> [Form]
-drawAlong path form =
-    map (\p -> drawAt p form) path 
+drawAlong : Form -> [Corner] -> [Form]
+drawAlong form path =
+    map (drawAt form) path 
 
-drawAt : Corner -> Form -> Form
-drawAt {x,y,a} = move (x,y) . rotate -a
+drawAt : Form -> Corner -> Form
+drawAt form {x,y,a} = move (x,y) <| rotate -a form
 
 mkPath : Corner -> [Corner -> Corner] -> [Corner]
 mkPath start = scanl (<|) start 
