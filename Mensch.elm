@@ -1,6 +1,7 @@
 import Automaton(Automaton, run, pure)
 import Graphics.Input(customButton)
 import Mouse(clicks, position)
+import open Either
 
 -- Game info
 
@@ -22,163 +23,234 @@ endPositions =
 -- Game logic
 --------------------------------------------------------------------------------
 
+type Token = (Int, Int)
+
+type RelLoc = Int
+type AbsLoc = Int
+type Player = Int
+
 -- token locations such that
--- gs.relLocs owner token = relLoc
+-- gs.relTokenLoc owner token = relLoc
 -- where relLoc is the location of a token relative to its start position such that
 -- * if relLoc < 0, the token has not yet entered the game
 -- * if relLoc == 0,  it is at the start position of owner 
 -- * if relLoc >= bOARDSIZE, it is in the home row
 
 type GameState = 
-    { player : Int -- curren player
-    , die : Int -- die FIXME: remove from gamestate
-    , relLocs : Int -> Int -> Int -- player -> token -> relpos
+    { currentplayer : Int
+    , die : Int -- FIXME: remove from gamestate?
+    , relTokenLoc : Int -> Int -> Int -- player -> token -> relpos
+    , log : [String]
+    , trace : [InputCmd]
+    , randSeed : Int
     }
 
 startState : GameState
 startState = 
-    { player = 0 
-    , die = 0 --randomRs (1,dIESIZE) (mkStdGen 42)
-    , relLocs = \owner token -> -token - 1
+    { currentplayer = 0 
+    , die = 1 --randomRs (1,dIESIZE) (mkStdGen 42)
+    , relTokenLoc = \owner token -> token-1 -- -token - 1
+    , log = []
+    , trace = []
+    , randSeed = 3
     }
 
--- yeah, this is bad
-modifyLoc : Int -> Int -> (Int -> Int) -> (Int -> Int -> Int) -> (Int -> Int -> Int)
-modifyLoc p t f relLocs =
-    \p' t' -> (if p == p' && t == t' then f else id) (relLocs p' t')
+absTokenLoc : GameState -> Int -> Int -> Int
+absTokenLoc gs p t = absLoc p (relTokenLoc gs p t)
 
-isOut p = p < 0
-isHome p = p > bOARDSIZE
-isOnBoard t = not (isOut t || isHome t)
+relTokenLoc : GameState -> Int -> Int -> Int
+relTokenLoc gs = gs.relTokenLoc
 
---throw : GameState -> GameState
---throw gs = { gs | die <- tail gs.dies }
+---- functions to modify the gamestate
 
--- target only works properly for tokens that are on the board
--- because it will happily move pieces past the end and enter the board on
--- throws other than six
-target : GameState -> Int -> Int
-target gs t = tokpos gs t + gs.die
+-- yeah, this is bad, need to have a better way to store
+modifyLoc : Int -> Int -> (Int -> Int) -> GameState -> GameState
+modifyLoc p t f gs =
+    let newRelLocs p' t' = if p == p' && t == t' then f (relTokenLoc gs p' t')
+                                                 else relTokenLoc gs p' t'
+        oldLoc = relTokenLoc gs p t
+    in logMsg (show ("moved",p,t,"from",oldLoc ,"to",f oldLoc)) { gs | relTokenLoc <- newRelLocs }
 
-positions : GameState -> [[Int]]
-positions gs =
-    map (\o -> map (gs.relLocs o) (upTo tOKENCNT)) (upTo pLAYERCNT)
+logMsg msg gs = { gs | log <- msg :: gs.log }
+pushCmd cmd gs = { gs | trace <- cmd :: gs.trace }
 
--- projected view on token positions for given player
--- who considers his start place 0
---FIXME: is currently wrong and unused anyway
---projectTokens : (Int -> Int -> Int) -> Int -> Int -> Int -> Int
---projectTokens relLocs player owner token = 
---    let location = relLocs owner token
---        playerOffset = sTARTOFFSET * ((player + owner) `mod` pLAYERCNT)
---        relLoc = (location + playerOffset) `mod` (bOARDSIZE+tOKENCNT)
---    in if location <= 0 then location else location + relLoc
+advanceToken p t s gs = modifyLoc p t ((+)s) gs
+
+resetToken : Int -> Int -> GameState -> GameState
+resetToken p t gs = 
+    let newpos = if currentpos < 0 then currentpos else head freePos
+        currentpos = relTokenLoc gs p t
+        occupied = filter (\l-> l < 0) <| map (relTokenLoc gs p) (upTo tOKENCNT)
+        freePos = filter (\k -> not <| k `isin` occupied) <| map ((*) -1) [1..tOKENCNT]
+    in logMsg (show ("chose", occupied, freePos)) <| modifyLoc p t (\_ -> newpos) gs
+       --logMsg (show ("chose", p,t)) gs -- <| modifyLoc p t (\_ -> newpos) gs
+    --let newpos = if currentpos < 0 then currentpos else head freePos
+    --    currentpos = relTokenLoc gs p t
+    --    occupied = filter ((<) 0) <| map (relTokenLoc gs p) (upTo tOKENCNT)
+    --    freePos = filter (\k -> k `isin` occupied) <| map ((*) -1) [1..tOKENCNT]
+    --in logMsg (show ("chose", freePos)) gs -- <| modifyLoc p t (\_ -> newpos) gs
+
+emptyPlace : Int -> GameState -> GameState
+emptyPlace aloc gs =
+    case occupant gs aloc of
+    Nothing -> gs
+    Just (p,t) ->
+        resetToken p t 
+            <| logMsg (show ("resetToken", p, t)) gs
+          
+    
+
+-- poor-man's quasi random number generation
+throwDice : GameState -> GameState
+throwDice gs = 
+    let z = 7 * gs.die + gs.randSeed
+    in { gs | die <- (z `mod` dIESIZE) + 1
+            , randSeed <- z `div` dIESIZE
+       }
+
+nextPlayer gs = { gs | currentplayer <- (gs.currentplayer + 1) `mod` pLAYERCNT }
+endOfTurn = throwDice . nextPlayer
+
+--applyIf : (a -> Bool) -> (a -> a) -> a -> a
+--applyIf cond f x = if cond x then f x else x
+
+--TODO: rerun game to turn back a move?
+--undoCmd : GameState -> GameState
+--undoCmd gs =
+--    case gs.trace of
+--    []     -> startState
+--    (_,gs')::tl -> startState
+
+----
 
 absLoc : Int -> Int -> Int
-absLoc player relLoc = (sTARTOFFSET * player + relLoc) `mod` bOARDSIZE
+absLoc player loc = 
+    if  | loc < 0          -> loc
+        | loc >= bOARDSIZE -> loc
+        | otherwise        -> (sTARTOFFSET * player + loc) `mod` bOARDSIZE
 
-tokpos : GameState -> Int -> Int
-tokpos gs = gs.relLocs gs.player
-
-update : Int -> (a->a) -> [a] -> [a]
-update i f lst = 
-    let (before, target :: after) = splitAt i lst
-    in before ++ f target :: after
-
-isEmpty : GameState -> Int -> Bool
-isEmpty gs p = snd (occupier gs p) == -1
-
-occupier : GameState -> Int -> (Int,Int)
-occupier gs p = case filter ((==) p . snd) (boardPositions gs) of
-    [] -> (-1,-1)
-    [occ] -> occ
-    otherwise -> head [] -- "Multiple tokens at same position?!"
-
-hasWon : GameState -> Bool
-hasWon gs = all (isHome . gs.relLocs gs.player) (upTo tOKENCNT)
-
--- return board from the perspective of the current player
--- i.e. a finite list ending in his homerow
-boardPositions : GameState -> [(Int,Int)]
-boardPositions gs = 
-    let startoffset owner = sTARTOFFSET * (mod (gs.player + owner) pLAYERCNT)
-        renumber owner loc = (loc + startoffset owner) `mod` (bOARDSIZE+tOKENCNT)
-    in  map (\(o,p) -> (o, renumber o p)) -- renumber tokens
-        <| filter (\(o,p) -> isOnBoard p || o == gs.player) -- remove tokens we cannot touch
-        <| concat
-        <| zipWith (zip . repeatN tOKENCNT) (upTo pLAYERCNT) -- associate tokens with owners
-        <| positions gs
-
-canEnter : GameState -> Bool
-canEnter gs =
-    let startpos = 1 + gs.player * sTARTOFFSET
-    in hasOutToks gs && snd (occupier gs startpos) /= gs.player
-
-hasOutToks : GameState -> Bool
-hasOutToks gs = any (isOut . gs.relLocs gs.player) (upTo tOKENCNT)
-
-canMove : GameState -> Int -> Bool
-canMove gs t = 
-    canEnter gs && isOut (tokpos gs t) && gs.die == dIESIZE
-    || not (canEnter gs || hasOutToks gs || gs.die == dIESIZE) 
-        && not (isOut (tokpos gs t)) 
-        && target gs t <= bOARDSIZE+tOKENCNT
-        && snd (occupier gs (target gs t)) /= gs.player
-
---move : GameState -> Int -> GameState
---move gs t
---  | hasWon gs = gs
---        { player = mod (1 + player gs) pLAYERCNT }
---  | canEnter gs && isOut (tokpos gs t) && die gs == dIESIZE = gs
---        { player = mod (1 + player gs) pLAYERCNT
---        , dies = tail (dies gs)
---        -- gs.positions[gs.player][t] += gs.die
---        , positions = update (player gs) (update t (const 1)) (positions gs)
---        }
---  | canMove gs t = gs
---        { player = mod (1 + player gs) pLAYERCNT
---        , dies = tail (dies gs)
---        -- in an impure language with arrays (and pythony syntax) this would be
---        -- gs.positions[gs.player][t] += gs.die
---        -- gs.positions[occupier.player][occupier.token] = 0
---        , positions = update (player gs) (update t (+ die gs)) 
---            ( case occupier gs (target gs t) of
---                (-1,-1) -> positions gs
---                (p,t') -> update p (update t' (const 0)) (positions gs)
---            )
---        }
---  | otherwise = gs
+relLoc : Int -> Int -> Int
+relLoc player loc =
+    if  | loc < 0          -> loc
+        | loc >= bOARDSIZE -> loc
+        | otherwise        -> (loc - sTARTOFFSET * player + bOARDSIZE) `mod` bOARDSIZE
 
 
--- just a rough calculation to see how quickly the chances of passing a place is
---pathProb : [Float]
---pathProb = foldr next [1,0,0,0,0] [0..bOARDSIZE]
---    where next _ lst = sum (map (/5) (take 5 lst)) : lst
+allTokens = upTo pLAYERCNT `combinations` upTo tOKENCNT
+
+activeTokens : GameState -> [(Int, Int)]
+activeTokens gs =
+    filter (\(p,t) -> relTokenLoc gs p t < bOARDSIZE) allTokens
+
+
+occupant : GameState -> Int -> Maybe (Int, Int)
+occupant gs aloc =
+    case filter ((==) aloc . uncurry (absTokenLoc gs)) (activeTokens gs) of
+    [] -> Nothing
+    hd::_ -> Just hd
+
+tryMove : GameState -> Int -> Int -> Either String GameState
+tryMove gs player t =
+    let rtarget = if rloc < 0 then player else rloc + gs.die
+        rloc = relTokenLoc gs player t
+        atarget = absLoc player rtarget
+        isout = rloc < 0
+        occupiedBySelf = 
+            case occupant gs atarget of
+            Nothing    -> False
+            Just (p,_) -> p == player
+    in if | gs.currentplayer /= player ->
+                Left "Not token of current player"
+          | isout && gs.die /= dIESIZE ->
+                Left "Can only enter a token on six"
+          | occupiedBySelf ->
+                Left <| "Target location already occupied by current player" ++ (show (occupant gs atarget, atarget, player, t, relTokenLoc gs player t, absLoc player t))
+          | rtarget >= bOARDSIZE+tOKENCNT ->
+                Left "Token cannot move that far"
+          | isout && gs.die == dIESIZE ->
+                Right <| throwDice <| advanceToken player t -rloc <| emptyPlace atarget gs
+          | otherwise ->
+                Right <| endOfTurn <| advanceToken player t gs.die <| emptyPlace atarget gs
+
+moves : GameState -> [Int]
+moves gs =
+    filter (\t -> isRight (tryMove gs gs.currentplayer t)) (upTo tOKENCNT)
+
+testMove : GameState -> GameState
+testMove gs =
+    case moves gs of
+    [] -> logMsg "No possible moves, passing turn" <| endOfTurn gs
+    otherwise -> gs
+
+----
+
+eagerAI : Int -> GameState -> InputCmd
+eagerAI player gs =
+    let moveable = filter (isRight . tryMove gs player) (upTo tOKENCNT)
+
+        isWorse tokA tokB = 
+            let locA = relTokenLoc gs player tokA
+                locB = relTokenLoc gs player tokB
+            in if | gs.die == dIESIZE && locA < 0 -> False
+                  | gs.die == dIESIZE && locB < 0 -> True
+                  | locA >= bOARDSIZE -> locA <= locB
+                  | otherwise -> locA >= locB
+
+        foremost = least isWorse 0 moveable
+
+    in if gs.currentplayer /= player 
+            then NoCmd
+            else MoveToken player foremost
+
+--isAfter : (Int -> Int -> Int) -> Int -> Int -> Int -> Bool
+--isAfter f player tokA tokB = 
+--    let locA = f player tokA
+--        locB = f player tokB
+--    in locA <= locB
+--    --if | locA >= bOARDSIZE -> locA <= locB
+--     --     | otherwise         -> locA >= locB
+------
+
+data InputCmd = EndOfTurn | MoveToken Int Int | CancelMove | NoCmd
+
+execCmd : InputCmd -> GameState -> GameState
+execCmd cmd gs = 
+    case cmd of
+    MoveToken p t ->
+        case tryMove gs p t of
+        Left msg -> testMove <| logMsg msg gs
+        Right gs' -> gs'
+--    CancelMove -> undoCmd
+    otherwise -> gs
+
 
 --------------------------------------------------------------------------------
 -- Board drawing
 --------------------------------------------------------------------------------
 
 pLACESIZE = 10.0
-tokenEl col = group
+tokenForm col = group
     [ filled black (circle (pLACESIZE/1.8))
     , alpha 0.9 <| filled col (circle (pLACESIZE/1.8))
     , outlined {defaultLine | width <- 1.5} (circle (pLACESIZE/1.8))
     ]
-placeEl = outlined defaultLine (circle pLACESIZE)
-startPlaceEl col = group [filled col (circle pLACESIZE), placeEl]
-homePlaceEl col = group [filled col (circle pLACESIZE), placeEl]
+placeForm = outlined defaultLine (circle pLACESIZE)
+startPlaceForm col = group [filled col (circle pLACESIZE), placeForm]
+homePlaceForm col = group [filled col (circle pLACESIZE), placeForm]
 
 placeShadow : Color -> Form
 placeShadow col = alpha 0.3 <| filled col (circle pLACESIZE)
 
 playerColors = [red, blue, yellow, green]
 
-boardPlaceStep = step (pLACESIZE * 3)
+boardPlaceStepSize = pLACESIZE * 3
+boardDisplaySize = (2 * tOKENCNT + 4) * boardPlaceStepSize
+
+boardPlaceStep = step boardPlaceStepSize
 boardPlaceLCorner = turn (degrees -(360/pLAYERCNT))
 boardPlaceRCorner = turn (degrees (360/pLAYERCNT))
 
-boardTraj = loopN pLAYERCNT <|
+boardTraj = concat <| repeatN pLAYERCNT <|
     repeatN (tOKENCNT) boardPlaceStep
     ++ boardPlaceStep . boardPlaceLCorner 
     :: repeatN (tOKENCNT-1) boardPlaceStep
@@ -195,12 +267,13 @@ startPlacesTraj =
     , boardPlaceStep
     ]
 
-boardCoords = take bOARDSIZE (mkPath origin boardTraj)
+boardCoords = take bOARDSIZE <| centerPath <| mkPath origin boardTraj
 startCoords = map (\i-> boardCoords!!i) startPositions
 endCoords = map (\i-> boardCoords!!i) endPositions
 homeRowCoords = map (\s -> drop 1 <| mkPath s homeRowTraj) endCoords
 startPlacesCoords =
     map (\s -> drop 1 <| mkPath s startPlacesTraj) startCoords
+
 
 tokenCoord : (Int -> Int -> Int) -> Int -> Int -> Corner
 tokenCoord relLocs player token =
@@ -216,64 +289,70 @@ tokenCoords relLocs =
     --or, with list comprehensions,
     --[[relLocs p t] t <- upTo tOKENCNT| p <- upTo pLAYERCNT]
 
-drawGame : (Int -> Int -> Element) -> GameState -> Element
-drawGame tokEls gs = flow right [
-    collage 700 700 <|
-        zipWith drawAt (map placeShadow playerColors) startCoords 
-        ++ drawAlong placeEl boardCoords
-        ++ concat (zipWith drawAlong (map homePlaceEl playerColors) homeRowCoords)
-        ++ concat (zipWith drawAlong (map startPlaceEl playerColors) startPlacesCoords)
-        ++ concat (zipWith drawAlong (map tokenEl playerColors) (tokenCoords gs.relLocs))
-        ++ drawTokens tokEls gs
-    , flow down <| map (uncurry tokEls) (upTo pLAYERCNT `combinations` upTo tOKENCNT)
-    ] 
+drawGame : GameState -> Element
+drawGame gs = flow down <|
+    [ collage (ceiling boardDisplaySize) (ceiling boardDisplaySize) <|
+            -- color the starting places with player's color (underneath)
+            zipWith drawAt (map placeShadow playerColors) startCoords 
+            -- draw the all places on the board, the full circle
+            ++ drawAlong placeForm boardCoords
+            -- draw home row places for every player
+            ++ concat (zipWith drawAlong (map homePlaceForm playerColors) homeRowCoords)
+            -- draw starting places for every player
+            ++ concat (zipWith drawAlong (map startPlaceForm playerColors) startPlacesCoords)
+            -- draw the actual tokens
+            ++ concat (zipWith drawAlong (map tokenForm playerColors) (tokenCoords (relTokenLoc gs)))
+            -- TODO: highlight the tokens that can move
+            -- draw the die colored with the current player
+            ++ [ scale 2 <| toForm <| text <| Text.color (playerColors!!gs.currentplayer) <| toText <| show gs.die]
+    ] ++ map (text . toText) gs.log
 
-
-drawTokens : (Int -> Int -> Element) -> GameState -> [Form]
-drawTokens tokenEls gs =
-    map (\(p,t) -> toForm (tokenEls p t) `drawAt` tokenCoord gs.relLocs p t)
-        (upTo pLAYERCNT `combinations` upTo tOKENCNT)
-
+--dieForms n =
+--    case n of
+        
+      
 
 --------------------------------------------------------------------------------
--- Main / impure
+-- Main / Input
 --------------------------------------------------------------------------------
 
-data InputCmd = EndOfTurn | MoveToken Int Int | CancelMove | NoCmd
+detectTokenClick : GameState -> (Float, Float) -> InputCmd
+detectTokenClick gs click =
+    let checkClick = isInsideCircle click pLACESIZE . getLoc
+        getLoc (p,t) = (\c -> (c.x, c.y)) <| tokenCoord (relTokenLoc gs) p t
+        tokens = [0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1]
+    in case filter checkClick tokens of
+        []         -> NoCmd
+        (p,t) :: _ -> MoveToken p t
 
-execCmd : InputCmd -> GameState -> GameState
-execCmd cmd gs = 
-    case cmd of
-    MoveToken p t -> { gs | relLocs <- modifyLoc p t ((+)1) gs.relLocs }
-    otherwise -> gs
+isInsideCircle : (Float, Float) -> Float -> (Float, Float) -> Bool
+isInsideCircle (cx,cy) r (px,py) = 
+    let deltax = cx - px
+        deltay = cy - py
+    in deltax*deltax + deltay*deltay <= r*r
 
-main = 
-    let cmds = merges (snd `map` concat tokenTable)
-        createTokenTableRow p = createToken p `map` upTo tOKENCNT
-        tokenTable = createTokenTableRow `map` upTo pLAYERCNT
-        tokenLookup p t = fst <| (tokenTable!!p)!!t
-    in drawGame tokenLookup <~ foldp execCmd startState cmds
+-- collage has inverted y and origin in the middle
+--FIXME: should probably catch cases to prevent division by 0
+collageOffset : (Int,Int)-> (Int, Int) -> (Float, Float)
+collageOffset (w,h) (x,y) =
+    (toFloat x - toFloat w / 2, toFloat h / 2 - toFloat y)
 
---careful this isn't side-effect free!!!
-createToken : Int -> Int -> (Element, Signal InputCmd)
-createToken owner token =
-    let (elem, sig) = customButton buttonEl buttonEl buttonEl
-        --FIXME: using collage only to 'cast' Form to Element :/
-        buttonEl = collage 20 20 [tokenEl (playerColors !! owner)]
-        movesig = constant (MoveToken owner token) `on` sig
-    in (elem, movesig)
+main =
+    let click = collageOffset dim <~ sampleOn clicks position
+        gameloop cpoint gs = 
+            let cmds = detectTokenClick gs cpoint
+                       :: map (\p -> eagerAI p gs) [1..pLAYERCNT-1]
+            in foldr execCmd gs cmds
+        dim = (ceiling boardDisplaySize, ceiling boardDisplaySize)
+    in drawGame <~ foldp gameloop startState click
 
-
---test  = [markdown| sadf |]
 
 --------------------------------------------------------------------------------
 -- Generic util
 --------------------------------------------------------------------------------
 
-on sig clock = sampleOn clock sig
-
-runState : (b -> Automaton a b) -> b -> Signal a -> Signal b
-runState aut s = run (aut s) s
+isin : comparable -> [comparable] -> Bool
+isin v lst = any ((==) v) lst
 
 (!!) : [a] -> Int -> a
 lst !! i = case lst of
@@ -300,20 +379,25 @@ repeatN : Int -> a -> [a]
 repeatN n elem = 
   if n > 0 then elem :: repeatN (n-1) elem else []
 
-loopN : Int -> [a] -> [a]
-loopN n = concat . repeatN n
-
 combinations : [a] -> [b] -> [(a,b)]
 combinations lstA lstB =
     case lstA of
         []          -> []
         hd :: tl    -> map ((,) hd) lstB ++ combinations tl lstB
 
+least : (a -> a -> Bool) -> a -> [a] -> a
+least isLE smallest lst =
+    case lst of
+    [] -> smallest
+    hd::tl -> let newsmallest =
+                    if smallest `isLE` hd then smallest else hd
+              in least isLE newsmallest tl
+
+
 --------------------------------------------------------------------------------
 -- Draw utils
 --------------------------------------------------------------------------------
 
---TODO: should accept a path, not trajectory
 drawAlong : Form -> [Corner] -> [Form]
 drawAlong form path =
     map (drawAt form) path 
@@ -324,11 +408,36 @@ drawAt form {x,y,a} = move (x,y) <| rotate -a form
 mkPath : Corner -> [Corner -> Corner] -> [Corner]
 mkPath start = scanl (<|) start 
 
--- creates path with origin at center of boundingbox
-mkCyclePath : [Corner -> Corner] -> [Corner]
-mkCyclePath traj = [] -- TODO:
+pathBB path = case path of
+    []     -> (0,0,0,0)
+    hd::tl -> let maxX = maximum (map .x path)
+                  minX = minimum (map .x path)
+                  maxY = maximum (map .y path)
+                  minY = minimum (map .y path)
+              in (maxX, minX, maxY, minY)
 
---mkCyclic
+--TODO: generalize to get a bounding box
+-- creates path with origin at center
+centerPath : [Corner] -> [Corner]
+centerPath path = 
+    let (maxX, minX, maxY, minY) = pathBB path
+        offX = maxX - (maxX - minX) / 2.0
+        offY = maxY - (maxY - minY) / 2.0
+        updatePath c = { c | x <- c.x - offX
+                           , y <- c.y - offY
+                       }
+    in map updatePath path
+
+
+-- make it all above 0
+positivePath : [Corner] -> [Corner]
+positivePath path = 
+    let (maxX, minX, maxY, minY) = pathBB path
+        updatePath c = { c | x <- c.x + minX
+                           , y <- c.y + minY
+                       }
+    in map updatePath path
+    
 
 type Corner = {x:Float, y:Float , a:Float}
 origin = {x=0,y=0,a=0}
