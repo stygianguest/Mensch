@@ -12,21 +12,25 @@ tOKENCNT = 4
 sTARTOFFSET = 2+2*tOKENCNT
 bOARDSIZE = pLAYERCNT * sTARTOFFSET
 
--- players are numbered [0..pLAYERCNT-1]
-allPlayers = [0..pLAYERCNT-1]
 -- die possibilities are [1..dIESIZE]
--- tokens are numbered [0..tOKENCNT-1]
 
 --------------------------------------------------------------------------------
 -- Game logic
 --------------------------------------------------------------------------------
 
-data Token = Token Int Int -- owner token
+type Player = Int
+-- players are numbered [0..pLAYERCNT-1]
+allPlayers = [0..pLAYERCNT-1]
+
+type TokenId = Int
+-- tokens are numbered [0..tOKENCNT-1]
+
+data Token = Token Player TokenId -- owner token
 
 allTokens = map (uncurry Token) ([0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1])
 playerTokens player = map (Token player) [0..tOKENCNT-1]
 
-data Location = Location Int Int -- owner distfromstart
+data Location = Location Player Int -- owner distfromstart
 
 startLocations p = map (Location p . (*) -1) [1..tOKENCNT]
 
@@ -39,7 +43,7 @@ isHomeLocation : Location -> Bool
 isHomeLocation (Location p l) = l > bOARDSIZE
 
 isValidLocation : Location -> Bool
-isValidLocation (Location p l) = l < bOARDSIZE && l >= -tOKENCNT
+isValidLocation (Location p l) = -tOKENCNT <= l && l < bOARDSIZE+tOKENCNT
 
 isBoardLocation loc =
     not (isStartLocation loc || isHomeLocation loc)
@@ -67,9 +71,9 @@ advanceLocation dist (Location p l) = Location p (l+dist)
 -- * if relLoc >= bOARDSIZE, it is in the home row
 
 type GameState = 
-    { currentPlayer : Int
+    { currentPlayer : Player
     , die : Int
-    , tokenLoc : Dict.Dict (Int,Int) Location
+    , tokenLoc : Dict.Dict (Player,TokenId) Location
     , log : [String]
     --, trace : [InputCmd]
     , randSeed : Int
@@ -79,15 +83,15 @@ initGameState : GameState
 initGameState = 
     { currentPlayer = 0 
     , die = 1
-    , tokenLoc = initTokenLoc
+    , tokenLoc = initTokenLoc -- Dict.insert (0,2) (Location 0 <| bOARDSIZE+1) initTokenLoc 
     , log = []
     --, trace = []
-    , randSeed = 3
+    , randSeed = 3571
     }
 
-initTokenLoc : Dict.Dict (Int,Int) Location
+initTokenLoc : Dict.Dict (Player,TokenId) Location
 initTokenLoc = 
-    let mkStartLoc (Token p t) = Location p (-t - 1)
+    let mkStartLoc (Token p t) = Location p (t-1) --- (-t - 1)
         unpackedAllTokens = [0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1]
     in Dict.fromList <| zip unpackedAllTokens <| map mkStartLoc allTokens
 
@@ -96,8 +100,8 @@ initTokenLoc =
 getLocation : GameState -> Token -> Location
 getLocation gs (Token p t) = 
     case Dict.lookup (p,t) gs.tokenLoc of
-    Nothing -> head [] --it should (tm) be impossible
     Just loc -> loc
+    -- Nothing -> --it should (tm) be impossible
 
 setLocation : Token -> Location -> GameState -> GameState
 setLocation (Token p t) loc gs = 
@@ -121,11 +125,15 @@ pushCmd cmd gs = { gs | trace <- cmd :: gs.trace }
 returnToStart : Token -> GameState -> GameState
 returnToStart ((Token p t) as tok) gs = 
     let newLoc = if isStartLocation currentLoc 
-                    then currentLoc else head freeLocs
+                    then currentLoc 
+                    else case freeLocs of
+                            hd::_ -> hd
+                            [] -> Location p (-t-1)-- shouldn't happen
         currentLoc = getLocation gs tok
         occupied = filter isStartLocation <| map (getLocation gs) (playerTokens p)
-        isNotOccupied loc = any (isSameLocation loc) occupied
+        isNotOccupied loc = not <| any (isSameLocation loc) occupied
         freeLocs = filter isNotOccupied (startLocations p)
+        --debugMsg = show (tok, currentLoc, occupied, freeLocs)
     in setLocation tok newLoc gs
 
 emptyLocation : Location -> GameState -> GameState
@@ -137,7 +145,7 @@ emptyLocation loc gs =
 -- poor-man's quasi random number generation
 throwDice : GameState -> GameState
 throwDice gs = 
-    let z = 7 * gs.die + gs.randSeed
+    let z = 3559 * gs.die + gs.randSeed
     in { gs | die <- (z `mod` dIESIZE) + 1
             , randSeed <- z `div` dIESIZE
        }
@@ -146,6 +154,10 @@ nextPlayer gs =
     { gs | currentPlayer <- (gs.currentPlayer + 1) `mod` pLAYERCNT }
 endOfTurn = throwDice . nextPlayer
 
+
+playersAtHome : GameState -> [Player]
+playersAtHome gs =
+    filter (all (isHomeLocation . getLocation gs) . playerTokens) allPlayers
 
 ----
 
@@ -160,8 +172,8 @@ getTargetLocation : GameState -> Token -> Location
 getTargetLocation gs (Token owner _ as tok) =
     let currentLoc = getLocation gs tok
     in if isStartLocation currentLoc 
-        then currentLoc 
-        else firstLocation owner
+        then firstLocation owner
+        else advanceLocation (gs.die) currentLoc
 
 
 tryMove : GameState -> Token -> Either String GameState
@@ -178,9 +190,9 @@ tryMove gs (Token owner t as tok) =
           | isStartLocation currentLoc && gs.die /= dIESIZE ->
                 Left "Can only enter a token on six"
           | isOccupiedByOwner ->
-                Left <| "Target location already occupied by current player"
-          | isValidLocation targetLoc ->
-                Left "Token cannot move that far"
+                Left <| "Target location already occupied by current player" ++ (show (currentLoc, targetLoc, lookupOccupant gs targetLoc))
+          | not <| isValidLocation targetLoc ->
+                Left <| "Token cannot move that far" ++ show targetLoc ++ show  (-tOKENCNT <= 0 && 0 < bOARDSIZE)
           | isStartLocation currentLoc && gs.die == dIESIZE ->
                 Right 
                     <| throwDice 
@@ -214,15 +226,18 @@ execCmd cmd gs =
         Left msg -> advanceOnBlocked <| logMsg msg gs
         Right gs' -> gs'
 --    CancelMove -> undoCmd
-    otherwise -> gs
+    NoCmd -> advanceOnBlocked gs
+    otherwise -> logMsg (show cmd) gs
 
 --------------------------------------------------------------------------------
 -- AI
 --------------------------------------------------------------------------------
 
+--type Strategy = 
+
 -- x is better than (or eq to) y if cond holds
-cond2Cmp : (a -> Bool) -> a -> a -> Bool
-cond2Cmp cond x y = cond x || not (cond y)
+betterToSatisfy : (a -> Bool) -> a -> a -> Bool
+betterToSatisfy cond x y = cond x || not (cond y)
 
 -- x is better than y if any of the comparisons say so
 -- the order in the list is important: 
@@ -231,7 +246,7 @@ stackedCmp : [a -> a -> Bool] -> a -> a -> Bool
 stackedCmp conds x y =
     case conds of
     hd :: tl -> if | hd x y == hd y x -> stackedCmp tl x y
-                   | hd x y           -> hd y x
+                   | otherwise        -> hd x y
     [] -> True -- without conditions all are equal
 
 hitsOpponent : GameState -> Token -> Bool
@@ -247,21 +262,27 @@ isAheadOf gs tokA tokB =
         (Location _ lB) = getLocation gs tokB
     in lA >= lB
 
+
+eagerStrategy gs = stackedCmp 
+    [ betterToSatisfy (not . isAtHome gs) -- if already at home, don't bother
+    , betterToSatisfy (hitsOpponent gs) -- 
+    , isAheadOf gs
+    ]
+
 eagerAI : Int -> GameState -> InputCmd
 eagerAI player gs =
     let moveable = filter (isRight . tryMove gs) (playerTokens player)
-        --onBoard = filter (isBoardLocation gs . getLocation gs) moveable
-        --atStart = filter (isStartLocation gs . getLocation gs) moveable
 
-        isBetterMove (MoveToken tokA) (MoveToken tokB) = stackedCmp
-            [ cond2Cmp (not . isAtHome gs)
-            , cond2Cmp (hitsOpponent gs)
-            , isAheadOf gs
-            ] tokA tokB
+        isWorseCmd x y =
+            case (x,y) of
+                (MoveToken tokA, MoveToken tokB) ->
+                    --isAheadOf gs tokB tokA --note reversed arguments
+                    eagerStrategy gs tokB tokA -- note reversed arguments
+                (NoCmd, MoveToken _) -> True -- always better to move
+                (MoveToken _, NoCmd) -> False 
+                otherwise -> True
 
-    in greatest isBetterMove NoCmd (map MoveToken moveable)
-            
-            
+    in greatest isWorseCmd NoCmd (map MoveToken moveable)
 
 --------------------------------------------------------------------------------
 -- Board drawing
@@ -329,8 +350,11 @@ tokenCoord gs = locationCoord . getLocation gs
 tokenCoords : GameState -> [[Corner]]
 tokenCoords gs =
     map (map (tokenCoord gs) . playerTokens) allPlayers
-    -- [[ tokenCoord gs tok | tok <- playerTokens p ] | p <- allPlayers ]
 
+-- TODO: 
+--      * highlight the tokens that can move
+--      * draw die in corner of current player
+--      * animated moves?
 drawGame : GameState -> Element
 drawGame gs = flow down <|
     [ collage (ceiling boardDisplaySize) (ceiling boardDisplaySize) <|
@@ -344,7 +368,6 @@ drawGame gs = flow down <|
             ++ concat (zipWith drawAlong (map startPlaceForm playerColors) startPlacesCoords)
             -- draw the actual tokens
             ++ concat (zipWith drawAlong (map tokenForm playerColors) (tokenCoords gs))
-            -- TODO: highlight the tokens that can move
             -- draw the die colored with the current player
             ++ [ scale 2 <| toForm <| text <| Text.color (playerColors!!gs.currentPlayer) <| toText <| show gs.die]
     ] ++ map (text . toText) gs.log
@@ -380,9 +403,8 @@ collageOffset (w,h) (x,y) =
 main =
     let click = collageOffset dim <~ sampleOn clicks position
         gameloop cpoint gs = 
-            let cmds = detectTokenClick gs cpoint
-                       :: map (\p -> eagerAI p gs) [1..pLAYERCNT-1]
-            in foldr execCmd gs cmds
+            let cmd = eagerAI gs.currentPlayer gs --detectTokenClick gs cpoint :: [eagerAI gs.currentPlayer gs]
+            in execCmd cmd gs
         dim = (ceiling boardDisplaySize, ceiling boardDisplaySize)
     in drawGame <~ foldp gameloop initGameState click
 
@@ -397,7 +419,6 @@ isin v lst = any ((==) v) lst
 (!!) : [a] -> Int -> a
 lst !! i = case lst of
     hd :: tl    -> if i <= 0 then hd else tl !! (i-1)
-    []          -> head []
 
 upTo : Int -> [Int]
 upTo cnt = scanl (+) 0 (repeatN (cnt-1) 1)
@@ -426,14 +447,16 @@ combinations lstA lstB =
         hd :: tl    -> map ((,) hd) lstB ++ combinations tl lstB
 
 least : (a -> a -> Bool) -> a -> [a] -> a
-least isLE smallest lst =
-    case lst of
-    [] -> smallest
-    hd::tl -> let newsmallest =
-                    if smallest `isLE` hd then smallest else hd
-              in least isLE newsmallest tl
+least isLE =
+    let min x y = if x `isLE` y then x else y
+    in foldr min
 
-greatest cmp = least (\x y -> not (cmp x y))
+greatest cmp = least (\x y -> cmp y x)
+
+qsort cmp lst =
+    case lst of
+    [] -> []
+    hd :: tl -> qsort cmp (filter (not . cmp hd) tl) ++ hd :: qsort cmp (filter (cmp hd) tl)
 
 
 --------------------------------------------------------------------------------
