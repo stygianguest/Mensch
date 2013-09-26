@@ -1,6 +1,7 @@
 import Automaton(Automaton, run, pure)
 import Graphics.Input(customButton)
 import Mouse(clicks, position)
+import Dict
 import open Either
 
 -- Game info
@@ -11,23 +12,52 @@ tOKENCNT = 4
 sTARTOFFSET = 2+2*tOKENCNT
 bOARDSIZE = pLAYERCNT * sTARTOFFSET
 
-startPositions = map ((*) sTARTOFFSET) (upTo pLAYERCNT)
-endPositions =
-    map (\i -> (i-1+bOARDSIZE) `mod` bOARDSIZE) startPositions
-
--- players are numbered [0,..,pLAYERCNT-1]
--- die possibilities are [1,...,dIESIZE]
--- tokens are numbered [0,...,tOKENCNT-1]
+-- players are numbered [0..pLAYERCNT-1]
+allPlayers = [0..pLAYERCNT-1]
+-- die possibilities are [1..dIESIZE]
+-- tokens are numbered [0..tOKENCNT-1]
 
 --------------------------------------------------------------------------------
 -- Game logic
 --------------------------------------------------------------------------------
 
-type Token = (Int, Int)
+data Token = Token Int Int -- owner token
 
-type RelLoc = Int
-type AbsLoc = Int
-type Player = Int
+allTokens = map (uncurry Token) ([0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1])
+playerTokens player = map (Token player) [0..tOKENCNT-1]
+
+data Location = Location Int Int -- owner distfromstart
+
+startLocations p = map (Location p . (*) -1) [1..tOKENCNT]
+
+firstLocation p = Location p 0
+
+isStartLocation : Location -> Bool
+isStartLocation (Location p l) = l < 0
+
+isHomeLocation : Location -> Bool
+isHomeLocation (Location p l) = l > bOARDSIZE
+
+isValidLocation : Location -> Bool
+isValidLocation (Location p l) = l < bOARDSIZE && l >= -tOKENCNT
+
+isBoardLocation loc =
+    not (isStartLocation loc || isHomeLocation loc)
+
+isSameLocation : Location -> Location -> Bool
+isSameLocation ((Location pa la) as a) ((Location pb lb) as b) = 
+    if  | pa == pb -> la == lb
+        | not (isBoardLocation a && isBoardLocation b) -> False
+        | otherwise -> absLoc a == absLoc b
+
+absLoc : Location -> Int
+absLoc (Location player loc) = 
+    if  | loc < 0          -> loc
+        | loc >= bOARDSIZE -> loc
+        | otherwise        -> (sTARTOFFSET * player + loc) `mod` bOARDSIZE
+
+advanceLocation : Int -> Location -> Location
+advanceLocation dist (Location p l) = Location p (l+dist)
 
 -- token locations such that
 -- gs.relTokenLoc owner token = relLoc
@@ -37,69 +67,73 @@ type Player = Int
 -- * if relLoc >= bOARDSIZE, it is in the home row
 
 type GameState = 
-    { currentplayer : Int
-    , die : Int -- FIXME: remove from gamestate?
-    , relTokenLoc : Int -> Int -> Int -- player -> token -> relpos
+    { currentPlayer : Int
+    , die : Int
+    , tokenLoc : Dict.Dict (Int,Int) Location
     , log : [String]
-    , trace : [InputCmd]
+    --, trace : [InputCmd]
     , randSeed : Int
     }
 
-startState : GameState
-startState = 
-    { currentplayer = 0 
-    , die = 1 --randomRs (1,dIESIZE) (mkStdGen 42)
-    , relTokenLoc = \owner token -> token-1 -- -token - 1
+initGameState : GameState
+initGameState = 
+    { currentPlayer = 0 
+    , die = 1
+    , tokenLoc = initTokenLoc
     , log = []
-    , trace = []
+    --, trace = []
     , randSeed = 3
     }
 
-absTokenLoc : GameState -> Int -> Int -> Int
-absTokenLoc gs p t = absLoc p (relTokenLoc gs p t)
-
-relTokenLoc : GameState -> Int -> Int -> Int
-relTokenLoc gs = gs.relTokenLoc
+initTokenLoc : Dict.Dict (Int,Int) Location
+initTokenLoc = 
+    let mkStartLoc (Token p t) = Location p (-t - 1)
+        unpackedAllTokens = [0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1]
+    in Dict.fromList <| zip unpackedAllTokens <| map mkStartLoc allTokens
 
 ---- functions to modify the gamestate
 
--- yeah, this is bad, need to have a better way to store
-modifyLoc : Int -> Int -> (Int -> Int) -> GameState -> GameState
-modifyLoc p t f gs =
-    let newRelLocs p' t' = if p == p' && t == t' then f (relTokenLoc gs p' t')
-                                                 else relTokenLoc gs p' t'
-        oldLoc = relTokenLoc gs p t
-    in logMsg (show ("moved",p,t,"from",oldLoc ,"to",f oldLoc)) { gs | relTokenLoc <- newRelLocs }
+getLocation : GameState -> Token -> Location
+getLocation gs (Token p t) = 
+    case Dict.lookup (p,t) gs.tokenLoc of
+    Nothing -> head [] --it should (tm) be impossible
+    Just loc -> loc
+
+setLocation : Token -> Location -> GameState -> GameState
+setLocation (Token p t) loc gs = 
+    { gs | tokenLoc <- Dict.insert (p,t) loc gs.tokenLoc }
+
+lookupOccupant : GameState -> Location -> Maybe Token
+lookupOccupant gs loc =
+    case filter (isSameLocation loc . getLocation gs) allTokens of
+    [] -> Nothing
+    hd::_ -> Just hd
+
+advanceToken : Token -> Int -> GameState -> GameState
+advanceToken (Token p t as tok) dist gs =
+    let newLoc = advanceLocation dist currentLoc
+        currentLoc = getLocation gs tok
+    in { gs | tokenLoc <- Dict.insert (p,t) newLoc gs.tokenLoc }
 
 logMsg msg gs = { gs | log <- msg :: gs.log }
 pushCmd cmd gs = { gs | trace <- cmd :: gs.trace }
 
-advanceToken p t s gs = modifyLoc p t ((+)s) gs
+returnToStart : Token -> GameState -> GameState
+returnToStart ((Token p t) as tok) gs = 
+    let newLoc = if isStartLocation currentLoc 
+                    then currentLoc else head freeLocs
+        currentLoc = getLocation gs tok
+        occupied = filter isStartLocation <| map (getLocation gs) (playerTokens p)
+        isNotOccupied loc = any (isSameLocation loc) occupied
+        freeLocs = filter isNotOccupied (startLocations p)
+    in setLocation tok newLoc gs
 
-resetToken : Int -> Int -> GameState -> GameState
-resetToken p t gs = 
-    let newpos = if currentpos < 0 then currentpos else head freePos
-        currentpos = relTokenLoc gs p t
-        occupied = filter (\l-> l < 0) <| map (relTokenLoc gs p) (upTo tOKENCNT)
-        freePos = filter (\k -> not <| k `isin` occupied) <| map ((*) -1) [1..tOKENCNT]
-    in logMsg (show ("chose", occupied, freePos)) <| modifyLoc p t (\_ -> newpos) gs
-       --logMsg (show ("chose", p,t)) gs -- <| modifyLoc p t (\_ -> newpos) gs
-    --let newpos = if currentpos < 0 then currentpos else head freePos
-    --    currentpos = relTokenLoc gs p t
-    --    occupied = filter ((<) 0) <| map (relTokenLoc gs p) (upTo tOKENCNT)
-    --    freePos = filter (\k -> k `isin` occupied) <| map ((*) -1) [1..tOKENCNT]
-    --in logMsg (show ("chose", freePos)) gs -- <| modifyLoc p t (\_ -> newpos) gs
-
-emptyPlace : Int -> GameState -> GameState
-emptyPlace aloc gs =
-    case occupant gs aloc of
+emptyLocation : Location -> GameState -> GameState
+emptyLocation loc gs =
+    case lookupOccupant gs loc of
     Nothing -> gs
-    Just (p,t) ->
-        resetToken p t 
-            <| logMsg (show ("resetToken", p, t)) gs
+    Just tok -> returnToStart tok gs
           
-    
-
 -- poor-man's quasi random number generation
 throwDice : GameState -> GameState
 throwDice gs = 
@@ -108,121 +142,126 @@ throwDice gs =
             , randSeed <- z `div` dIESIZE
        }
 
-nextPlayer gs = { gs | currentplayer <- (gs.currentplayer + 1) `mod` pLAYERCNT }
+nextPlayer gs = 
+    { gs | currentPlayer <- (gs.currentPlayer + 1) `mod` pLAYERCNT }
 endOfTurn = throwDice . nextPlayer
 
---applyIf : (a -> Bool) -> (a -> a) -> a -> a
---applyIf cond f x = if cond x then f x else x
-
---TODO: rerun game to turn back a move?
---undoCmd : GameState -> GameState
---undoCmd gs =
---    case gs.trace of
---    []     -> startState
---    (_,gs')::tl -> startState
 
 ----
 
-absLoc : Int -> Int -> Int
-absLoc player loc = 
-    if  | loc < 0          -> loc
-        | loc >= bOARDSIZE -> loc
-        | otherwise        -> (sTARTOFFSET * player + loc) `mod` bOARDSIZE
+--gameOver : GameState -> Maybe Int
+--gameOver gs =
 
-relLoc : Int -> Int -> Int
-relLoc player loc =
-    if  | loc < 0          -> loc
-        | loc >= bOARDSIZE -> loc
-        | otherwise        -> (loc - sTARTOFFSET * player + bOARDSIZE) `mod` bOARDSIZE
-
-
-allTokens = upTo pLAYERCNT `combinations` upTo tOKENCNT
-
-activeTokens : GameState -> [(Int, Int)]
+activeTokens : GameState -> [Token]
 activeTokens gs =
-    filter (\(p,t) -> relTokenLoc gs p t < bOARDSIZE) allTokens
+    filter (isBoardLocation . getLocation gs)  allTokens
+
+getTargetLocation : GameState -> Token -> Location
+getTargetLocation gs (Token owner _ as tok) =
+    let currentLoc = getLocation gs tok
+    in if isStartLocation currentLoc 
+        then currentLoc 
+        else firstLocation owner
 
 
-occupant : GameState -> Int -> Maybe (Int, Int)
-occupant gs aloc =
-    case filter ((==) aloc . uncurry (absTokenLoc gs)) (activeTokens gs) of
-    [] -> Nothing
-    hd::_ -> Just hd
-
-tryMove : GameState -> Int -> Int -> Either String GameState
-tryMove gs player t =
-    let rtarget = if rloc < 0 then player else rloc + gs.die
-        rloc = relTokenLoc gs player t
-        atarget = absLoc player rtarget
-        isout = rloc < 0
-        occupiedBySelf = 
-            case occupant gs atarget of
+tryMove : GameState -> Token -> Either String GameState
+tryMove gs (Token owner t as tok) =
+    let currentLoc = getLocation gs tok
+        targetLoc = getTargetLocation gs tok
+        isOccupiedByOwner = 
+            case lookupOccupant gs targetLoc of
             Nothing    -> False
-            Just (p,_) -> p == player
-    in if | gs.currentplayer /= player ->
+            Just (Token p _) -> p == owner
+
+    in if | gs.currentPlayer /= owner ->
                 Left "Not token of current player"
-          | isout && gs.die /= dIESIZE ->
+          | isStartLocation currentLoc && gs.die /= dIESIZE ->
                 Left "Can only enter a token on six"
-          | occupiedBySelf ->
-                Left <| "Target location already occupied by current player" ++ (show (occupant gs atarget, atarget, player, t, relTokenLoc gs player t, absLoc player t))
-          | rtarget >= bOARDSIZE+tOKENCNT ->
+          | isOccupiedByOwner ->
+                Left <| "Target location already occupied by current player"
+          | isValidLocation targetLoc ->
                 Left "Token cannot move that far"
-          | isout && gs.die == dIESIZE ->
-                Right <| throwDice <| advanceToken player t -rloc <| emptyPlace atarget gs
+          | isStartLocation currentLoc && gs.die == dIESIZE ->
+                Right 
+                    <| throwDice 
+                    <| setLocation tok (firstLocation owner) 
+                    <| emptyLocation targetLoc gs
           | otherwise ->
-                Right <| endOfTurn <| advanceToken player t gs.die <| emptyPlace atarget gs
+                Right 
+                    <| endOfTurn 
+                    <| advanceToken tok gs.die 
+                    <| emptyLocation targetLoc gs
 
-moves : GameState -> [Int]
-moves gs =
-    filter (\t -> isRight (tryMove gs gs.currentplayer t)) (upTo tOKENCNT)
+moveableTokens : GameState -> Int -> [Token]
+moveableTokens gs player =
+    filter (isRight . tryMove gs) (playerTokens player)
 
-testMove : GameState -> GameState
-testMove gs =
-    case moves gs of
+
+advanceOnBlocked : GameState -> GameState
+advanceOnBlocked gs =
+    case moveableTokens gs gs.currentPlayer of
     [] -> logMsg "No possible moves, passing turn" <| endOfTurn gs
     otherwise -> gs
 
-----
 
-eagerAI : Int -> GameState -> InputCmd
-eagerAI player gs =
-    let moveable = filter (isRight . tryMove gs player) (upTo tOKENCNT)
-
-        isWorse tokA tokB = 
-            let locA = relTokenLoc gs player tokA
-                locB = relTokenLoc gs player tokB
-            in if | gs.die == dIESIZE && locA < 0 -> False
-                  | gs.die == dIESIZE && locB < 0 -> True
-                  | locA >= bOARDSIZE -> locA <= locB
-                  | otherwise -> locA >= locB
-
-        foremost = least isWorse 0 moveable
-
-    in if gs.currentplayer /= player 
-            then NoCmd
-            else MoveToken player foremost
-
---isAfter : (Int -> Int -> Int) -> Int -> Int -> Int -> Bool
---isAfter f player tokA tokB = 
---    let locA = f player tokA
---        locB = f player tokB
---    in locA <= locB
---    --if | locA >= bOARDSIZE -> locA <= locB
---     --     | otherwise         -> locA >= locB
-------
-
-data InputCmd = EndOfTurn | MoveToken Int Int | CancelMove | NoCmd
+data InputCmd = EndOfTurn | MoveToken Token | CancelMove | NoCmd
 
 execCmd : InputCmd -> GameState -> GameState
 execCmd cmd gs = 
     case cmd of
-    MoveToken p t ->
-        case tryMove gs p t of
-        Left msg -> testMove <| logMsg msg gs
+    MoveToken tok ->
+        case tryMove gs tok of
+        Left msg -> advanceOnBlocked <| logMsg msg gs
         Right gs' -> gs'
 --    CancelMove -> undoCmd
     otherwise -> gs
 
+--------------------------------------------------------------------------------
+-- AI
+--------------------------------------------------------------------------------
+
+-- x is better than (or eq to) y if cond holds
+cond2Cmp : (a -> Bool) -> a -> a -> Bool
+cond2Cmp cond x y = cond x || not (cond y)
+
+-- x is better than y if any of the comparisons say so
+-- the order in the list is important: 
+-- earlier conditions supersede later ones
+stackedCmp : [a -> a -> Bool] -> a -> a -> Bool
+stackedCmp conds x y =
+    case conds of
+    hd :: tl -> if | hd x y == hd y x -> stackedCmp tl x y
+                   | hd x y           -> hd y x
+    [] -> True -- without conditions all are equal
+
+hitsOpponent : GameState -> Token -> Bool
+hitsOpponent gs = isJust . lookupOccupant gs . getTargetLocation gs
+
+isAtHome : GameState -> Token -> Bool
+isAtHome gs = isHomeLocation . getLocation gs
+
+--FIXME: following should compare also if player isn't the same
+isAheadOf : GameState -> Token -> Token -> Bool
+isAheadOf gs tokA tokB =
+    let (Location _ lA) = getLocation gs tokA
+        (Location _ lB) = getLocation gs tokB
+    in lA >= lB
+
+eagerAI : Int -> GameState -> InputCmd
+eagerAI player gs =
+    let moveable = filter (isRight . tryMove gs) (playerTokens player)
+        --onBoard = filter (isBoardLocation gs . getLocation gs) moveable
+        --atStart = filter (isStartLocation gs . getLocation gs) moveable
+
+        isBetterMove (MoveToken tokA) (MoveToken tokB) = stackedCmp
+            [ cond2Cmp (not . isAtHome gs)
+            , cond2Cmp (hitsOpponent gs)
+            , isAheadOf gs
+            ] tokA tokB
+
+    in greatest isBetterMove NoCmd (map MoveToken moveable)
+            
+            
 
 --------------------------------------------------------------------------------
 -- Board drawing
@@ -267,6 +306,9 @@ startPlacesTraj =
     , boardPlaceStep
     ]
 
+startPositions = map ((*) sTARTOFFSET) (upTo pLAYERCNT)
+endPositions =
+    map (\i -> (i-1+bOARDSIZE) `mod` bOARDSIZE) startPositions
 boardCoords = take bOARDSIZE <| centerPath <| mkPath origin boardTraj
 startCoords = map (\i-> boardCoords!!i) startPositions
 endCoords = map (\i-> boardCoords!!i) endPositions
@@ -274,20 +316,20 @@ homeRowCoords = map (\s -> drop 1 <| mkPath s homeRowTraj) endCoords
 startPlacesCoords =
     map (\s -> drop 1 <| mkPath s startPlacesTraj) startCoords
 
+locationCoord : Location -> Corner
+locationCoord (Location player rloc as loc) =
+    if | rloc < 0 -> (startPlacesCoords !! player) !! (-rloc-1)
+       | rloc >= bOARDSIZE -> (homeRowCoords !! player) !! (rloc - bOARDSIZE)
+       | otherwise -> boardCoords !! absLoc loc
 
-tokenCoord : (Int -> Int -> Int) -> Int -> Int -> Corner
-tokenCoord relLocs player token =
-    let loc = relLocs player token 
-    in if  | loc < 0          -> (startPlacesCoords !! player) !! (-loc - 1)
-           | loc >= bOARDSIZE -> (homeRowCoords !! player) !! (loc - bOARDSIZE)
-           | otherwise        -> boardCoords !! absLoc player loc
 
-tokenCoords : (Int -> Int -> Int) -> [[Corner]]
-tokenCoords relLocs = 
-    map (\f-> map (\t->f t) (upTo tOKENCNT))
-    <| map (tokenCoord relLocs) (upTo pLAYERCNT)
-    --or, with list comprehensions,
-    --[[relLocs p t] t <- upTo tOKENCNT| p <- upTo pLAYERCNT]
+tokenCoord : GameState -> Token -> Corner
+tokenCoord gs = locationCoord . getLocation gs
+
+tokenCoords : GameState -> [[Corner]]
+tokenCoords gs =
+    map (map (tokenCoord gs) . playerTokens) allPlayers
+    -- [[ tokenCoord gs tok | tok <- playerTokens p ] | p <- allPlayers ]
 
 drawGame : GameState -> Element
 drawGame gs = flow down <|
@@ -301,14 +343,12 @@ drawGame gs = flow down <|
             -- draw starting places for every player
             ++ concat (zipWith drawAlong (map startPlaceForm playerColors) startPlacesCoords)
             -- draw the actual tokens
-            ++ concat (zipWith drawAlong (map tokenForm playerColors) (tokenCoords (relTokenLoc gs)))
+            ++ concat (zipWith drawAlong (map tokenForm playerColors) (tokenCoords gs))
             -- TODO: highlight the tokens that can move
             -- draw the die colored with the current player
-            ++ [ scale 2 <| toForm <| text <| Text.color (playerColors!!gs.currentplayer) <| toText <| show gs.die]
+            ++ [ scale 2 <| toForm <| text <| Text.color (playerColors!!gs.currentPlayer) <| toText <| show gs.die]
     ] ++ map (text . toText) gs.log
 
---dieForms n =
---    case n of
         
       
 
@@ -318,12 +358,12 @@ drawGame gs = flow down <|
 
 detectTokenClick : GameState -> (Float, Float) -> InputCmd
 detectTokenClick gs click =
-    let checkClick = isInsideCircle click pLACESIZE . getLoc
-        getLoc (p,t) = (\c -> (c.x, c.y)) <| tokenCoord (relTokenLoc gs) p t
-        tokens = [0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1]
-    in case filter checkClick tokens of
-        []         -> NoCmd
-        (p,t) :: _ -> MoveToken p t
+    let checkClick = isInsideCircle click pLACESIZE 
+                     . (\c -> (c.x, c.y))
+                     . tokenCoord gs
+    in case filter checkClick allTokens of
+        []       -> NoCmd
+        tok :: _ -> MoveToken tok
 
 isInsideCircle : (Float, Float) -> Float -> (Float, Float) -> Bool
 isInsideCircle (cx,cy) r (px,py) = 
@@ -344,7 +384,7 @@ main =
                        :: map (\p -> eagerAI p gs) [1..pLAYERCNT-1]
             in foldr execCmd gs cmds
         dim = (ceiling boardDisplaySize, ceiling boardDisplaySize)
-    in drawGame <~ foldp gameloop startState click
+    in drawGame <~ foldp gameloop initGameState click
 
 
 --------------------------------------------------------------------------------
@@ -392,6 +432,8 @@ least isLE smallest lst =
     hd::tl -> let newsmallest =
                     if smallest `isLE` hd then smallest else hd
               in least isLE newsmallest tl
+
+greatest cmp = least (\x y -> not (cmp x y))
 
 
 --------------------------------------------------------------------------------
