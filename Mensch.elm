@@ -2,7 +2,9 @@ import Automaton(Automaton, run, pure)
 import Graphics.Input(customButton)
 import Mouse(clicks, position)
 import Dict
+import Window
 import open Either
+import Random
 
 -- Game info
 
@@ -30,6 +32,11 @@ data Token = Token Player TokenId -- owner token
 allTokens = map (uncurry Token) ([0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1])
 playerTokens player = map (Token player) [0..tOKENCNT-1]
 
+-- token locations relative to the owner's position such that
+-- Token owner relLoc
+-- * if relLoc < 0, the token has not yet entered the game
+-- * if relLoc == 0,  it is at the start position of owner 
+-- * if relLoc >= bOARDSIZE, it is in the home row
 data Location = Location Player Int -- owner distfromstart
 
 startLocations p = map (Location p . (*) -1) [1..tOKENCNT]
@@ -40,7 +47,7 @@ isStartLocation : Location -> Bool
 isStartLocation (Location p l) = l < 0
 
 isHomeLocation : Location -> Bool
-isHomeLocation (Location p l) = l > bOARDSIZE
+isHomeLocation (Location p l) = l >= bOARDSIZE
 
 isValidLocation : Location -> Bool
 isValidLocation (Location p l) = -tOKENCNT <= l && l < bOARDSIZE+tOKENCNT
@@ -63,13 +70,6 @@ absLoc (Location player loc) =
 advanceLocation : Int -> Location -> Location
 advanceLocation dist (Location p l) = Location p (l+dist)
 
--- token locations such that
--- gs.relTokenLoc owner token = relLoc
--- where relLoc is the location of a token relative to its start position such that
--- * if relLoc < 0, the token has not yet entered the game
--- * if relLoc == 0,  it is at the start position of owner 
--- * if relLoc >= bOARDSIZE, it is in the home row
-
 type GameState = 
     { currentPlayer : Player
     , die : Int
@@ -82,7 +82,7 @@ type GameState =
 initGameState : GameState
 initGameState = 
     { currentPlayer = 0 
-    , die = 1
+    , die = 6
     , tokenLoc = initTokenLoc -- Dict.insert (0,2) (Location 0 <| bOARDSIZE+1) initTokenLoc 
     , log = []
     --, trace = []
@@ -91,7 +91,7 @@ initGameState =
 
 initTokenLoc : Dict.Dict (Player,TokenId) Location
 initTokenLoc = 
-    let mkStartLoc (Token p t) = Location p (t-1) --- (-t - 1)
+    let mkStartLoc (Token p t) = Location p (-t - 1)
         unpackedAllTokens = [0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1]
     in Dict.fromList <| zip unpackedAllTokens <| map mkStartLoc allTokens
 
@@ -150,6 +150,9 @@ throwDice gs =
             , randSeed <- z `div` dIESIZE
        }
 
+seedRand :  Int -> GameState -> GameState
+seedRand seed gs = { gs | die <- (seed `mod` dIESIZE) + 1 }
+
 nextPlayer gs = 
     { gs | currentPlayer <- (gs.currentPlayer + 1) `mod` pLAYERCNT }
 endOfTurn = throwDice . nextPlayer
@@ -157,12 +160,9 @@ endOfTurn = throwDice . nextPlayer
 
 playersAtHome : GameState -> [Player]
 playersAtHome gs =
-    filter (all (isHomeLocation . getLocation gs) . playerTokens) allPlayers
+    filter (all (isAtHome gs) . playerTokens) allPlayers
 
 ----
-
---gameOver : GameState -> Maybe Int
---gameOver gs =
 
 activeTokens : GameState -> [Token]
 activeTokens gs =
@@ -355,11 +355,11 @@ tokenCoords gs =
 --      * highlight the tokens that can move
 --      * draw die in corner of current player
 --      * animated moves?
-drawGame : GameState -> Element
-drawGame gs = flow down <|
-    [ collage (ceiling boardDisplaySize) (ceiling boardDisplaySize) <|
+drawGame : (Int, Int) -> GameState -> Element
+drawGame (w,h) gs = flow down <|
+    [ collage w h <|
             -- color the starting places with player's color (underneath)
-            zipWith drawAt (map placeShadow playerColors) startCoords 
+            zipWith drawAt (map placeShadow playerColors) startCoords
             -- draw the all places on the board, the full circle
             ++ drawAlong placeForm boardCoords
             -- draw home row places for every player
@@ -370,7 +370,21 @@ drawGame gs = flow down <|
             ++ concat (zipWith drawAlong (map tokenForm playerColors) (tokenCoords gs))
             -- draw the die colored with the current player
             ++ [ scale 2 <| toForm <| text <| Text.color (playerColors!!gs.currentPlayer) <| toText <| show gs.die]
-    ] ++ map (text . toText) gs.log
+            ++ endGameBanner gs
+            ++ [move (0, -boardDisplaySize / 2) <| toForm <| flow down <| map (text . toText) (take 1 gs.log)]
+    ] -- ++ map (text . toText) (take 1 gs.log)
+
+endGameBanner gs = 
+    case playersAtHome gs of
+    [] -> []
+    winner::_ ->
+        [ alpha 0.9 <| filled white <| rect 300 150
+        --, traced {defaultLine | width <- 5} <| rect 250 100
+        , move (0,20) <| scale 3 <| toForm <| text <| toText "Game Over"
+        , move (-35,-21) <| homePlaceForm <| playerColors!!winner
+        , move (pLACESIZE,-18) <| scale 2 <| toForm <| text <| toText "won" 
+        , move (0,-40) <| toForm <| text <| toText "refresh to start new game"
+        ]
 
         
       
@@ -379,8 +393,8 @@ drawGame gs = flow down <|
 -- Main / Input
 --------------------------------------------------------------------------------
 
-detectTokenClick : GameState -> (Float, Float) -> InputCmd
-detectTokenClick gs click =
+localHuman : (Float, Float) -> GameState -> InputCmd
+localHuman click gs =
     let checkClick = isInsideCircle click pLACESIZE 
                      . (\c -> (c.x, c.y))
                      . tokenCoord gs
@@ -401,12 +415,16 @@ collageOffset (w,h) (x,y) =
     (toFloat x - toFloat w / 2, toFloat h / 2 - toFloat y)
 
 main =
-    let click = collageOffset dim <~ sampleOn clicks position
-        gameloop cpoint gs = 
-            let cmd = eagerAI gs.currentPlayer gs --detectTokenClick gs cpoint :: [eagerAI gs.currentPlayer gs]
-            in execCmd cmd gs
-        dim = (ceiling boardDisplaySize, ceiling boardDisplaySize)
-    in drawGame <~ foldp gameloop initGameState click
+    let click = collageOffset <~ Window.dimensions ~ sampleOn clicks position
+        seed = Random.range 1 dIESIZE click
+        gameloop (rand,cpoint) gs = 
+            let cmd = case gs.currentPlayer of
+                        0 -> localHuman cpoint gs
+                        n -> eagerAI n gs
+            in seedRand rand <| execCmd cmd <| logMsg (show cmd) gs
+        game = logMsg "Click red tokens to play.\nClick anywhere to advance the AI" initGameState
+    in drawGame <~ Window.dimensions ~ foldp gameloop game ((,) <~ seed ~ click)
+
 
 
 --------------------------------------------------------------------------------
@@ -457,6 +475,11 @@ qsort cmp lst =
     case lst of
     [] -> []
     hd :: tl -> qsort cmp (filter (not . cmp hd) tl) ++ hd :: qsort cmp (filter (cmp hd) tl)
+
+isEmpty lst =
+    case lst of
+    [] -> True
+    _ :: _ -> False
 
 
 --------------------------------------------------------------------------------
