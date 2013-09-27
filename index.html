@@ -134,7 +134,7 @@
                                       case
                                       "[]" :
                                         return {ctor: "_Tuple4", _0: 0, _1: 0, _2: 0, _3: 0};}
-                                     _E.Case($moduleName,"between lines 469 and 475");
+                                     _E.Case($moduleName,"between lines 475 and 481");
                                    }();
                           };
              var pLAYERCNT = 4;
@@ -294,7 +294,7 @@
                                                case
                                                "[]" :
                                                  return _J.toList([]);}
-                                              _E.Case($moduleName,"between lines 444 and 446");
+                                              _E.Case($moduleName,"between lines 450 and 452");
                                             }();
                                    });
              var collageOffset = F2(function (arg1,arg0)
@@ -929,7 +929,7 @@
                                           return _N.cmp(i,0) < 1 ? lst._0 : A2(_op["!!"],
                                                                                lst._1,
                                                                                i - 1);}
-                                       _E.Case($moduleName,"between lines 435 and 436");
+                                       _E.Case($moduleName,"between lines 441 and 442");
                                      }();
                             });
              var endCoords = A2(List.map,
@@ -1109,25 +1109,40 @@
                                                         "_Tuple2" :
                                                           return function ()
                                                                  {
+                                                                   var insertRandom = function ()
+                                                                                      {
+                                                                                        var _case116 = gs.currentPlayer;
+                                                                                        switch (_case116)
+                                                                                        {case
+                                                                                         0 :
+                                                                                           return Basics.id;}
+                                                                                        return seedRand(arg1._0);
+                                                                                      }();
                                                                    var cmd = function ()
                                                                              {
-                                                                               var _case116 = gs.currentPlayer;
-                                                                               switch (_case116)
+                                                                               var _case117 = gs.currentPlayer;
+                                                                               switch (_case117)
                                                                                {case
                                                                                 0 :
                                                                                   return A2(localHuman,
                                                                                             arg1._1,
                                                                                             gs);}
                                                                                return A2(eagerAI,
-                                                                                         _case116,
+                                                                                         _case117,
                                                                                          gs);
                                                                              }();
-                                                                   return seedRand(arg1._0)(execCmd(cmd)(A2(logMsg,
-                                                                                                            Prelude.show(cmd),
-                                                                                                            gs)));
+                                                                   var logCmd = function ()
+                                                                                {
+                                                                                  switch (cmd.ctor)
+                                                                                  {case
+                                                                                   "MoveToken" :
+                                                                                     return logMsg(_str("moving"));}
+                                                                                  return Basics.id;
+                                                                                }();
+                                                                   return insertRandom(execCmd(cmd)(logCmd(gs)));
                                                                  }();}
                                                        _E.Case($moduleName,
-                                                               "between lines 421 and 424");
+                                                               "between lines 421 and 430");
                                                      }();
                                             });
                           var game = A2(logMsg,
