@@ -190,9 +190,9 @@ tryMove gs (Token owner t as tok) =
           | isStartLocation currentLoc && gs.die /= dIESIZE ->
                 Left "Can only enter a token on six"
           | isOccupiedByOwner ->
-                Left <| "Target location already occupied by current player" ++ (show (currentLoc, targetLoc, lookupOccupant gs targetLoc))
+                Left "Target location already occupied by current player"
           | not <| isValidLocation targetLoc ->
-                Left <| "Token cannot move that far" ++ show targetLoc ++ show  (-tOKENCNT <= 0 && 0 < bOARDSIZE)
+                Left "Token cannot move that far"
           | isStartLocation currentLoc && gs.die == dIESIZE ->
                 Right 
                     <| throwDice 
@@ -421,7 +421,13 @@ main =
             let cmd = case gs.currentPlayer of
                         0 -> localHuman cpoint gs
                         n -> eagerAI n gs
-            in seedRand rand <| execCmd cmd <| logMsg (show cmd) gs
+                insertRandom = case gs.currentPlayer of
+                    0 -> id
+                    n -> seedRand rand
+                logCmd = case cmd of
+                    MoveToken _ -> logMsg "moving"
+                    otherwise -> id
+            in insertRandom <| execCmd cmd <| logCmd gs
         game = logMsg "Click red tokens to play.\nClick anywhere to advance the AI" initGameState
     in drawGame <~ Window.dimensions ~ foldp gameloop game ((,) <~ seed ~ click)
 
