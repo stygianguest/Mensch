@@ -327,7 +327,7 @@ startPlacesTraj =
     , boardPlaceStep
     ]
 
-startPositions = map ((*) sTARTOFFSET) (upTo pLAYERCNT)
+startPositions = map ((*) sTARTOFFSET) [0..pLAYERCNT-1]
 endPositions =
     map (\i -> (i-1+bOARDSIZE) `mod` bOARDSIZE) startPositions
 boardCoords = take bOARDSIZE <| centerPath <| mkPath origin boardTraj
@@ -431,28 +431,9 @@ main =
 -- Generic util
 --------------------------------------------------------------------------------
 
-isin : comparable -> [comparable] -> Bool
-isin v lst = any ((==) v) lst
-
 (!!) : [a] -> Int -> a
 lst !! i = case lst of
-    hd :: tl    -> if i <= 0 then hd else tl !! (i-1)
-
-upTo : Int -> [Int]
-upTo cnt = scanl (+) 0 (repeatN (cnt-1) 1)
-
-splitAt : Int -> [a] -> ([a],[a])
-splitAt cnt lst =
-    if cnt > 0 then case lst of
-                    [] -> ([], [])
-                    hd::tl ->
-                        let (before, after) = splitAt (cnt-1) tl
-                        in (hd::before, after)
-               else ([], lst)
-
---FIXME: handle backward ranges?
-enumFromTo : Int -> Int -> [Int]
-enumFromTo from to = scanl (+) from (repeatN (to-from) 1)
+    hd :: tl -> if i <= 0 then hd else tl !! (i-1)
 
 repeatN : Int -> a -> [a]
 repeatN n elem = 
@@ -470,17 +451,6 @@ least isLE =
     in foldr min
 
 greatest cmp = least (\x y -> cmp y x)
-
-qsort cmp lst =
-    case lst of
-    [] -> []
-    hd :: tl -> qsort cmp (filter (not . cmp hd) tl) ++ hd :: qsort cmp (filter (cmp hd) tl)
-
-isEmpty lst =
-    case lst of
-    [] -> True
-    _ :: _ -> False
-
 
 --------------------------------------------------------------------------------
 -- Draw utils
@@ -515,17 +485,6 @@ centerPath path =
                            , y <- c.y - offY
                        }
     in map updatePath path
-
-
--- make it all above 0
-positivePath : [Corner] -> [Corner]
-positivePath path = 
-    let (maxX, minX, maxY, minY) = pathBB path
-        updatePath c = { c | x <- c.x + minX
-                           , y <- c.y + minY
-                       }
-    in map updatePath path
-    
 
 type Corner = {x:Float, y:Float , a:Float}
 origin = {x=0,y=0,a=0}
