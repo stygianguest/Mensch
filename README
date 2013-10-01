@@ -3,9 +3,12 @@ Implementation of Mench Aergere Dich Nicht
 The game is played by four players (red, blue, green and yellow) each with four pieces.
 A player wins if she manages to move all her tokens to the home row from the starting position, traversing the full board in a clockwise direction.
 The following rules apply:
-* Players play in turns in counter-clockwise order (following the starting positions) starting with the person that wins a first roll.
+* Players play in turns in clockwise order starting with the person that wins a first roll.
 * A turn starts with a die roll.
-* If the player rolls six and not all pieces are in the game, she must move a piece onto the game and roll a second time. 
-* Otherwise she must move one token the exact number of steps in clockwise direction.
+* If the player rolls six she can move a piece onto the game.
+* Otherwise she may move one token the exact number of steps in clockwise direction.
 * If a token is moved on top of token, the other token is returned to the starting position and has to start over.
-* If no piece can be moved, the turn ends without moving.
+* In the home row, tokens 'bounce' off the end, reversing direction for the remaining steps in a throw.
+* If possible, one should always move.
+* Whenever the player rolls a six, she may do another turn.
+* If no token can be moved, the turn ends without moving.

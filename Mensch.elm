@@ -68,7 +68,18 @@ absLoc (Location player loc) =
         | otherwise        -> (sTARTOFFSET * player + loc) `mod` bOARDSIZE
 
 advanceLocation : Int -> Location -> Location
-advanceLocation dist (Location p l) = Location p (l+dist)
+advanceLocation dist (Location p l) =
+    let maxPosLen = bOARDSIZE+tOKENCNT - 1
+        target = l+dist
+        newPos = target - 2*(0 `max` (target - maxPosLen))
+    in Location p newPos
+
+-- Nothing implies distance is infinite
+--locationDistance : Location -> Location -> Maybe Int
+--locationDistance (Location pA lA as locA) (Location pB lB as locB) =
+--    if  | (isHomeLocation locA || isHomeLocation locB) -> Nothing
+--        | otherwise -> 
+--            Just <| absLoc (Location pA (lA `max` 0)) - absLoc (Location pB (lB `max` 0))
 
 type GameState = 
     { currentPlayer : Player
@@ -91,7 +102,7 @@ initGameState =
 
 initTokenLoc : Dict.Dict (Player,TokenId) Location
 initTokenLoc = 
-    let mkStartLoc (Token p t) = Location p (-t - 1)
+    let mkStartLoc (Token p t) = Location p (bOARDSIZE-2-t)--(-t - 1)
         unpackedAllTokens = [0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1]
     in Dict.fromList <| zip unpackedAllTokens <| map mkStartLoc allTokens
 
@@ -191,8 +202,6 @@ tryMove gs (Token owner t as tok) =
                 Left "Can only enter a token on six"
           | isOccupiedByOwner ->
                 Left "Target location already occupied by current player"
-          | not <| isValidLocation targetLoc ->
-                Left "Token cannot move that far"
           | isStartLocation currentLoc && gs.die == dIESIZE ->
                 Right 
                     <| throwDice 
@@ -200,7 +209,7 @@ tryMove gs (Token owner t as tok) =
                     <| emptyLocation targetLoc gs
           | otherwise ->
                 Right 
-                    <| endOfTurn 
+                    <| (if gs.die == dIESIZE then throwDice else endOfTurn)
                     <| advanceToken tok gs.die 
                     <| emptyLocation targetLoc gs
 
@@ -252,6 +261,10 @@ stackedCmp conds x y =
 hitsOpponent : GameState -> Token -> Bool
 hitsOpponent gs = isJust . lookupOccupant gs . getTargetLocation gs
 
+--canBeHit : GameState -> Token -> Bool
+--canBeHit gs (Token p _ as tok) =
+--    f
+
 isAtHome : GameState -> Token -> Bool
 isAtHome gs = isHomeLocation . getLocation gs
 
@@ -263,11 +276,16 @@ isAheadOf gs tokA tokB =
     in lA >= lB
 
 
-eagerStrategy gs = stackedCmp 
-    [ betterToSatisfy (not . isAtHome gs) -- if already at home, don't bother
-    , betterToSatisfy (hitsOpponent gs) -- 
-    , isAheadOf gs
-    ]
+--eagerStrategy gs = stackedCmp 
+--    [ betterToSatisfy (not . isAtHome gs) -- if already at home, don't bother
+--    , betterToSatisfy (hitsOpponent gs)
+--    , isAheadOf gs
+--    ]
+
+--defensiveStyle gs = betterToSatisfy (canBeHit gs)
+aggressiveStyle gs = betterToSatisfy (hitsOpponent gs)
+eagerStrategy = isAheadOf
+hedgeStrategy gs tokA tokB = isAheadOf gs tokB tokA
 
 eagerAI : Int -> GameState -> InputCmd
 eagerAI player gs =
@@ -409,7 +427,6 @@ isInsideCircle (cx,cy) r (px,py) =
     in deltax*deltax + deltay*deltay <= r*r
 
 -- collage has inverted y and origin in the middle
---FIXME: should probably catch cases to prevent division by 0
 collageOffset : (Int,Int)-> (Int, Int) -> (Float, Float)
 collageOffset (w,h) (x,y) =
     (toFloat x - toFloat w / 2, toFloat h / 2 - toFloat y)
