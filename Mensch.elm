@@ -75,11 +75,11 @@ advanceLocation dist (Location p l) =
     in Location p newPos
 
 -- Nothing implies distance is infinite
---locationDistance : Location -> Location -> Maybe Int
---locationDistance (Location pA lA as locA) (Location pB lB as locB) =
---    if  | (isHomeLocation locA || isHomeLocation locB) -> Nothing
---        | otherwise -> 
---            Just <| absLoc (Location pA (lA `max` 0)) - absLoc (Location pB (lB `max` 0))
+locationDistance : Location -> Location -> Maybe Int
+locationDistance (Location pA lA as locA) (Location pB lB as locB) =
+    if  | (isHomeLocation locA || isHomeLocation locB) -> Nothing
+        | otherwise -> 
+            Just <| absLoc (Location pA (lA `max` 0)) - absLoc (Location pB (lB `max` 0))
 
 type GameState = 
     { currentPlayer : Player
@@ -106,7 +106,10 @@ initTokenLoc =
         unpackedAllTokens = [0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1]
     in Dict.fromList <| zip unpackedAllTokens <| map mkStartLoc allTokens
 
----- functions to modify the gamestate
+---- functions to modify or query the gamestate
+
+newGame : GameState -> GameState
+newGame gs = { gs | tokenLoc <- initTokenLoc }
 
 getLocation : GameState -> Token -> Location
 getLocation gs (Token p t) = 
@@ -242,8 +245,6 @@ execCmd cmd gs =
 -- AI
 --------------------------------------------------------------------------------
 
---type Strategy = 
-
 -- x is better than (or eq to) y if cond holds
 betterToSatisfy : (a -> Bool) -> a -> a -> Bool
 betterToSatisfy cond x y = cond x || not (cond y)
@@ -261,9 +262,18 @@ stackedCmp conds x y =
 hitsOpponent : GameState -> Token -> Bool
 hitsOpponent gs = isJust . lookupOccupant gs . getTargetLocation gs
 
---canBeHit : GameState -> Token -> Bool
---canBeHit gs (Token p _ as tok) =
---    f
+canBeHit : GameState -> Token -> Bool
+canBeHit gs (Token p _ as tok) = 
+    let otherTokens = filter differentOwner allTokens
+        differentOwner (Token p' _) = p' /= p
+        tokLoc = getLocation gs tok
+        tokenDistances = map (locationDistance tokLoc . getLocation gs) otherTokens
+        isHittingDist dist =
+            case dist of
+            Nothing -> False
+            Just d -> d <= dIESIZE
+
+    in any isHittingDist tokenDistances
 
 isAtHome : GameState -> Token -> Bool
 isAtHome gs = isHomeLocation . getLocation gs
@@ -282,25 +292,33 @@ isAheadOf gs tokA tokB =
 --    , isAheadOf gs
 --    ]
 
---defensiveStyle gs = betterToSatisfy (canBeHit gs)
+--TODO: sort tokens by the likelyhood (number of die throws that will get it hit)
+defensiveStyle gs = betterToSatisfy (canBeHit gs)
 aggressiveStyle gs = betterToSatisfy (hitsOpponent gs)
-eagerStrategy = isAheadOf
+
+eagerStrategy gs = stackedCmp 
+    [ betterToSatisfy (not . isAtHome gs) -- if already at home, don't bother
+    , isAheadOf gs
+    ]
 hedgeStrategy gs tokA tokB = isAheadOf gs tokB tokA
 
-eagerAI : Int -> GameState -> InputCmd
-eagerAI player gs =
+computerPlayer : (GameState -> Token -> Token -> Bool) -> Int -> GameState -> InputCmd
+computerPlayer strategy player gs =
     let moveable = filter (isRight . tryMove gs) (playerTokens player)
 
         isWorseCmd x y =
             case (x,y) of
                 (MoveToken tokA, MoveToken tokB) ->
-                    --isAheadOf gs tokB tokA --note reversed arguments
-                    eagerStrategy gs tokB tokA -- note reversed arguments
+                     strategy gs tokB tokA -- note reversed arguments
                 (NoCmd, MoveToken _) -> True -- always better to move
                 (MoveToken _, NoCmd) -> False 
                 otherwise -> True
 
     in greatest isWorseCmd NoCmd (map MoveToken moveable)
+
+
+eagerAI : Int -> GameState -> InputCmd
+eagerAI = computerPlayer eagerStrategy
 
 --------------------------------------------------------------------------------
 -- Board drawing
@@ -449,10 +467,26 @@ main =
     in drawGame <~ Window.dimensions ~ foldp gameloop game ((,) <~ seed ~ click)
 
 
+aiPlayoff : [GameState -> InputCmd] -> Int -> Int -> [Player]
+aiPlayoff players rseed noGames =
+    let playTurn gs = execCmd ((players !! gs.currentPlayer) gs) gs
+        playOut = applyUntil playTurn (not . isEmpty . playersAtHome)
+        firstGame = seedRand rseed initGameState
+    in map (head . playersAtHome) <| applyN (playOut . newGame) noGames firstGame
 
 --------------------------------------------------------------------------------
 -- Generic util
 --------------------------------------------------------------------------------
+
+applyN : (a -> a) -> Int -> a -> [a]
+applyN f times init =
+    case times of
+    0 -> []
+    n -> init :: applyN f (times - 1) (f init)
+
+
+applyUntil : (a -> a) -> (a -> Bool) -> a -> a
+applyUntil f cond init = if cond init then init else applyUntil f cond (f init)
 
 (!!) : [a] -> Int -> a
 lst !! i = case lst of
