@@ -1,5 +1,5 @@
 import Graphics.Input(customButton)
-import Mouse(clicks, position)
+import Mouse--(clicks, position)
 import Window
 import Random
 
@@ -27,7 +27,7 @@ collageOffset (w,h) (x,y) =
     (toFloat x - toFloat w / 2, toFloat h / 2 - toFloat y)
 
 main =
-    let click = collageOffset <~ Window.dimensions ~ sampleOn clicks position
+    let click = collageOffset <~ Window.dimensions ~ sampleOn Mouse.clicks Mouse.position
         seed = Random.range 1 dIESIZE click
         gameloop (rand,cpoint) gs = 
             let cmd = case gs.currentPlayer of
