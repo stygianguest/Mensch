@@ -244,19 +244,25 @@ execCmd cmd gs =
 -- AI
 --------------------------------------------------------------------------------
 
--- x is better than (or eq to) y if cond holds
-betterToSatisfy : (a -> Bool) -> a -> a -> Bool
-betterToSatisfy cond x y = cond x || not (cond y)
+-- a strategy defines an order for different moves in a specific gamestate
+-- the ``smallest'' element will be the result of the strategy
+type Strategy = GameState -> Token -> Token -> Bool
 
--- x is better than y if any of the comparisons say so
--- the order in the list is important: 
--- earlier conditions supersede later ones
-stackedCmp : [a -> a -> Bool] -> a -> a -> Bool
-stackedCmp conds x y =
-    case conds of
-    hd :: tl -> if | hd x y == hd y x -> stackedCmp tl x y
-                   | otherwise        -> hd x y
-    [] -> True -- without conditions all are equal
+-- define strategy from a boolean property such that
+-- moving tokA is better than (or eq to) moving tokB 
+-- iff cond holds for tokA in the given gamestate
+betterToSatisfy : (GameState -> Token -> Bool) -> Strategy
+betterToSatisfy cond gs tokA tokB = cond gs tokA || not (cond gs tokB)
+
+-- combine two strategies defined by <=' and <='' to define a third <= s.t.
+-- tokA <= tokB  iff  tokA <' tokB or (tokA ==' tokB and tokA <='' tokB)
+-- thus the second ordering only determines the order if the first comparison
+-- deems tokA and tokB equal
+(>|>) : Strategy -> Strategy -> Strategy
+(>|>) f g gs tokA tokB = 
+    if
+       | f gs tokA tokB && f gs tokB tokA -> g gs tokA tokB
+       | otherwise            -> f gs tokA tokB --note that (tokA !=' tokB)
 
 hitsOpponent : GameState -> Token -> Bool
 hitsOpponent gs = isJust . lookupOccupant gs . getTargetLocation gs
@@ -278,30 +284,20 @@ isAtHome : GameState -> Token -> Bool
 isAtHome gs = isHomeLocation . getLocation gs
 
 --FIXME: following should compare also if player isn't the same
-isAheadOf : GameState -> Token -> Token -> Bool
+isAheadOf : Strategy
 isAheadOf gs tokA tokB =
     let (Location _ lA) = getLocation gs tokA
         (Location _ lB) = getLocation gs tokB
     in lA >= lB
 
-
---eagerStrategy gs = stackedCmp 
---    [ betterToSatisfy (not . isAtHome gs) -- if already at home, don't bother
---    , betterToSatisfy (hitsOpponent gs)
---    , isAheadOf gs
---    ]
-
 --TODO: sort tokens by the likelyhood (number of die throws that will get it hit)
-defensiveStyle gs = betterToSatisfy (canBeHit gs)
-aggressiveStyle gs = betterToSatisfy (hitsOpponent gs)
+defensiveStyle = betterToSatisfy canBeHit
+aggressiveStyle = betterToSatisfy hitsOpponent
 
-eagerStrategy gs = stackedCmp 
-    [ betterToSatisfy (not . isAtHome gs) -- if already at home, don't bother
-    , isAheadOf gs
-    ]
-hedgeStrategy gs tokA tokB = isAheadOf gs tokB tokA
+eagerStrategy = betterToSatisfy (\gs -> not . isAtHome gs) >|> isAheadOf
+hedgeStrategy gs tokA tokB = isAheadOf gs tokB tokA -- reverses the order
 
-computerPlayer : (GameState -> Token -> Token -> Bool) -> Int -> GameState -> InputCmd
+computerPlayer : Strategy -> Int -> GameState -> InputCmd
 computerPlayer strategy player gs =
     let moveable = filter (isRight . tryMove gs) (playerTokens player)
 
@@ -314,7 +310,3 @@ computerPlayer strategy player gs =
                 otherwise -> True
 
     in greatest isWorseCmd NoCmd (map MoveToken moveable)
-
-
-eagerAI : Int -> GameState -> InputCmd
-eagerAI = computerPlayer eagerStrategy

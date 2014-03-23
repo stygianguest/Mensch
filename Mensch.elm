@@ -32,7 +32,7 @@ main =
         gameloop (rand,cpoint) gs = 
             let cmd = case gs.currentPlayer of
                         0 -> localHuman cpoint gs
-                        n -> eagerAI n gs
+                        n -> computerPlayer eagerStrategy n gs
                 insertRandom = case gs.currentPlayer of
                     0 -> id
                     n -> seedRand rand
