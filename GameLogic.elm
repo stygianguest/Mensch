@@ -101,14 +101,17 @@ initGameState =
 
 initTokenLoc : Dict.Dict (Player,TokenId) Location
 initTokenLoc = 
-    let mkStartLoc (Token p t) = Location p (bOARDSIZE-2-t)--(-t - 1)
+    let mkStartLoc (Token p t) = Location p (-t - 1) -- (bOARDSIZE+3-t)
         unpackedAllTokens = [0..pLAYERCNT-1] `combinations` [0..tOKENCNT-1]
     in Dict.fromList <| zip unpackedAllTokens <| map mkStartLoc allTokens
 
 ---- functions to modify or query the gamestate
 
 newGame : GameState -> GameState
-newGame gs = { gs | tokenLoc <- initTokenLoc }
+newGame gs =
+    { gs | tokenLoc <- initTokenLoc 
+         , currentPlayer <- gs.randSeed `mod` pLAYERCNT
+    }
 
 getLocation : GameState -> Token -> Location
 getLocation gs (Token p t) = 
