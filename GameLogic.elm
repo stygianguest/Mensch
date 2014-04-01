@@ -1,7 +1,7 @@
 module GameLogic where
 
 import Dict
-import open Either
+import Either(..)
 
 import Util(combinations, greatest)
 
@@ -177,6 +177,9 @@ endOfTurn = throwDice . nextPlayer
 playersAtHome : GameState -> [Player]
 playersAtHome gs =
     filter (all (isAtHome gs) . playerTokens) allPlayers
+
+gameOver : GameState -> Bool
+gameOver = not . isEmpty . playersAtHome
 
 ----
 
