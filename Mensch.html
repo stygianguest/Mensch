@@ -1,0 +1,1729 @@
+<!DOCTYPE HTML>
+<html><head><meta charset="UTF-8"><title>Mensch</title><script type="text/javascript" src="/home/gideon/.cabal/share/Elm-0.12/elm-runtime.js"></script><script type="text/javascript">Elm.Main = Elm.Main || {};
+Elm.Main.make = function (_elm)
+                {
+                  "use strict";
+                  _elm.Main = _elm.Main || {};
+                  if (_elm.Main.values)
+                  return _elm.Main.values;
+                  var _N = Elm.Native,
+                      _U = _N.Utils.make(_elm),
+                      _L = _N.List.make(_elm),
+                      _E = _N.Error.make(_elm),
+                      _J = _N.JavaScript.make(_elm),
+                      $moduleName = "Main";
+                  var Basics = Elm.Basics.make(_elm);
+                  var BoardDrawing = Elm.BoardDrawing.make(_elm);
+                  var Color = Elm.Color.make(_elm);
+                  var GameLogic = Elm.GameLogic.make(_elm);
+                  var Graphics = Graphics || {};
+                  Graphics.Collage = Elm.Graphics.Collage.make(_elm);
+                  var Graphics = Graphics || {};
+                  Graphics.Element = Elm.Graphics.Element.make(_elm);
+                  var Graphics = Graphics || {};
+                  Graphics.Input = Elm.Graphics.Input.make(_elm);
+                  var List = Elm.List.make(_elm);
+                  var Maybe = Elm.Maybe.make(_elm);
+                  var Mouse = Elm.Mouse.make(_elm);
+                  var Native = Native || {};
+                  Native.Ports = Elm.Native.Ports.make(_elm);
+                  var Random = Elm.Random.make(_elm);
+                  var Signal = Elm.Signal.make(_elm);
+                  var String = Elm.String.make(_elm);
+                  var Text = Elm.Text.make(_elm);
+                  var Time = Elm.Time.make(_elm);
+                  var Window = Elm.Window.make(_elm);
+                  var _op = {};
+                  var collageOffset = F2(function (_v0,_v1)
+                                         {
+                                           return function ()
+                                                  {
+                                                    switch (_v1.ctor)
+                                                    {case
+                                                     "_Tuple2" :
+                                                       return function ()
+                                                              {
+                                                                switch (_v0.ctor)
+                                                                {case
+                                                                 "_Tuple2" :
+                                                                   return {ctor: "_Tuple2", _0: Basics.toFloat(_v1._0) - Basics.toFloat(_v0._0) / 2, _1: Basics.toFloat(_v0._1) / 2 - Basics.toFloat(_v1._1)};}
+                                                                _E.Case($moduleName,
+                                                                        "on line 27, column 6 to 58");
+                                                              }();}
+                                                    _E.Case($moduleName,
+                                                            "on line 27, column 6 to 58");
+                                                  }();
+                                         });
+                  var isInsideCircle = F3(function (_v8,r,_v9)
+                                          {
+                                            return function ()
+                                                   {
+                                                     switch (_v9.ctor)
+                                                     {case
+                                                      "_Tuple2" :
+                                                        return function ()
+                                                               {
+                                                                 switch (_v8.ctor)
+                                                                 {case
+                                                                  "_Tuple2" :
+                                                                    return function ()
+                                                                           {
+                                                                             var deltay = _v8._1 - _v9._1;
+                                                                             var deltax = _v8._0 - _v9._0;
+                                                                             return _U.cmp(deltax * deltax + deltay * deltay,
+                                                                                           r * r) < 1;
+                                                                           }();}
+                                                                 _E.Case($moduleName,
+                                                                         "between lines 20 and 22");
+                                                               }();}
+                                                     _E.Case($moduleName,"between lines 20 and 22");
+                                                   }();
+                                          });
+                  var localHuman = F2(function (click,gs)
+                                      {
+                                        return function ()
+                                               {
+                                                 var checkClick = function ($)
+                                                                  {
+                                                                    return A2(isInsideCircle,
+                                                                              click,
+                                                                              BoardDrawing.pLACESIZE)(function (c)
+                                                                                                      {
+                                                                                                        return {ctor: "_Tuple2", _0: c.x, _1: c.y};
+                                                                                                      }(BoardDrawing.tokenCoord(gs)($)));
+                                                                  };
+                                                 return function ()
+                                                        {
+                                                          var _v16 = A2(List.filter,
+                                                                        checkClick,
+                                                                        GameLogic.allTokens);
+                                                          switch (_v16.ctor)
+                                                          {case
+                                                           "::" :
+                                                             return GameLogic.MoveToken(_v16._0);
+                                                           case
+                                                           "[]" :
+                                                             return GameLogic.NoCmd;}
+                                                          _E.Case($moduleName,
+                                                                  "between lines 14 and 16");
+                                                        }();
+                                               }();
+                                      });
+                  var main = function ()
+                             {
+                               var game = A2(GameLogic.logMsg,
+                                             "Click red tokens to play.\nClick anywhere to advance the AI",
+                                             GameLogic.initGameState);
+                               var gameloop = F2(function (_v19,gs)
+                                                 {
+                                                   return function ()
+                                                          {
+                                                            switch (_v19.ctor)
+                                                            {case
+                                                             "_Tuple2" :
+                                                               return function ()
+                                                                      {
+                                                                        var insertRandom = function ()
+                                                                                           {
+                                                                                             var _v23 = gs.currentPlayer;
+                                                                                             switch (_v23)
+                                                                                             {case
+                                                                                              0 :
+                                                                                                return Basics.id;}
+                                                                                             return GameLogic.seedRand(_v19._0);
+                                                                                           }();
+                                                                        var cmd = function ()
+                                                                                  {
+                                                                                    var _v24 = gs.currentPlayer;
+                                                                                    switch (_v24)
+                                                                                    {case
+                                                                                     0 :
+                                                                                       return A2(localHuman,
+                                                                                                 _v19._1,
+                                                                                                 gs);
+                                                                                     case
+                                                                                     1 :
+                                                                                       return A3(GameLogic.computerPlayer,
+                                                                                                 A2(GameLogic._op[">|>"],
+                                                                                                    A2(GameLogic._op[">|>"],
+                                                                                                       GameLogic.defensiveStyle,
+                                                                                                       GameLogic.aggressiveStyle),
+                                                                                                    GameLogic.eagerStrategy),
+                                                                                                 1,
+                                                                                                 gs);
+                                                                                     case
+                                                                                     2 :
+                                                                                       return A3(GameLogic.computerPlayer,
+                                                                                                 A2(GameLogic._op[">|>"],
+                                                                                                    A2(GameLogic._op[">|>"],
+                                                                                                       GameLogic.aggressiveStyle,
+                                                                                                       GameLogic.defensiveStyle),
+                                                                                                    GameLogic.hedgeStrategy),
+                                                                                                 2,
+                                                                                                 gs);
+                                                                                     case
+                                                                                     3 :
+                                                                                       return A3(GameLogic.computerPlayer,
+                                                                                                 A2(GameLogic._op[">|>"],
+                                                                                                    A2(GameLogic._op[">|>"],
+                                                                                                       GameLogic.defensiveStyle,
+                                                                                                       GameLogic.aggressiveStyle),
+                                                                                                    GameLogic.hedgeStrategy),
+                                                                                                 3,
+                                                                                                 gs);}
+                                                                                    _E.Case($moduleName,
+                                                                                            "between lines 33 and 38");
+                                                                                  }();
+                                                                        var logCmd = function ()
+                                                                                     {
+                                                                                       switch (cmd.ctor)
+                                                                                       {case
+                                                                                        "MoveToken" :
+                                                                                          return GameLogic.logMsg("moving");}
+                                                                                       return Basics.id;
+                                                                                     }();
+                                                                        return insertRandom(GameLogic.execCmd(cmd)(logCmd(gs)));
+                                                                      }();}
+                                                            _E.Case($moduleName,
+                                                                    "between lines 33 and 44");
+                                                          }();
+                                                 });
+                               var click = A2(Signal._op["~"],
+                                              A2(Signal._op["<~"],collageOffset,Window.dimensions),
+                                              A2(Signal.sampleOn,Mouse.clicks,Mouse.position));
+                               var seed = A3(Random.range,1,GameLogic.dIESIZE,click);
+                               return A2(Signal._op["~"],
+                                         A2(Signal._op["<~"],
+                                            BoardDrawing.drawGame,
+                                            Window.dimensions),
+                                         A3(Signal.foldp,
+                                            gameloop,
+                                            game,
+                                            A2(Signal._op["~"],
+                                               A2(Signal._op["<~"],
+                                                  F2(function (v0,v1)
+                                                     {
+                                                       return {ctor: "_Tuple2", _0: v0, _1: v1};
+                                                     }),
+                                                  seed),
+                                               click)));
+                             }();
+                  _elm.Main.values = {_op: _op, localHuman: localHuman, isInsideCircle: isInsideCircle, collageOffset: collageOffset, main: main};
+                  return _elm.Main.values;
+                };Elm.BoardDrawing = Elm.BoardDrawing || {};
+Elm.BoardDrawing.make = function (_elm)
+                        {
+                          "use strict";
+                          _elm.BoardDrawing = _elm.BoardDrawing || {};
+                          if (_elm.BoardDrawing.values)
+                          return _elm.BoardDrawing.values;
+                          var _N = Elm.Native,
+                              _U = _N.Utils.make(_elm),
+                              _L = _N.List.make(_elm),
+                              _E = _N.Error.make(_elm),
+                              _J = _N.JavaScript.make(_elm),
+                              $moduleName = "BoardDrawing";
+                          var Basics = Elm.Basics.make(_elm);
+                          var Color = Elm.Color.make(_elm);
+                          var GameLogic = Elm.GameLogic.make(_elm);
+                          var Graphics = Graphics || {};
+                          Graphics.Collage = Elm.Graphics.Collage.make(_elm);
+                          var Graphics = Graphics || {};
+                          Graphics.Element = Elm.Graphics.Element.make(_elm);
+                          var List = Elm.List.make(_elm);
+                          var Maybe = Elm.Maybe.make(_elm);
+                          var Native = Native || {};
+                          Native.Ports = Elm.Native.Ports.make(_elm);
+                          var Signal = Elm.Signal.make(_elm);
+                          var String = Elm.String.make(_elm);
+                          var Text = Elm.Text.make(_elm);
+                          var Time = Elm.Time.make(_elm);
+                          var Util = Elm.Util.make(_elm);
+                          var _op = {};
+                          var turn = F2(function (angle,_v0)
+                                        {
+                                          return function ()
+                                                 {
+                                                   return {_: {}, a: _v0.a + angle, x: _v0.x, y: _v0.y};
+                                                 }();
+                                        });
+                          var turnLeft = turn(Basics.degrees(-90));
+                          var turnRight = turn(Basics.degrees(90));
+                          var step = F2(function (dist,_v2)
+                                        {
+                                          return function ()
+                                                 {
+                                                   return {_: {}, a: _v2.a, x: _v2.x + dist * Basics.sin(_v2.a), y: _v2.y + dist * Basics.cos(_v2.a)};
+                                                 }();
+                                        });
+                          var origin = {_: {}, a: 0, x: 0, y: 0};
+                          var Corner = F3(function (a,b,c)
+                                          {
+                                            return {_: {}, a: c, x: a, y: b};
+                                          });
+                          var pathBB = function (path)
+                                       {
+                                         return function ()
+                                                {
+                                                  switch (path.ctor)
+                                                  {case
+                                                   "::" :
+                                                     return function ()
+                                                            {
+                                                              var minY = List.minimum(A2(List.map,
+                                                                                         function (_)
+                                                                                         {
+                                                                                           return _.y;
+                                                                                         },
+                                                                                         path));
+                                                              var maxY = List.maximum(A2(List.map,
+                                                                                         function (_)
+                                                                                         {
+                                                                                           return _.y;
+                                                                                         },
+                                                                                         path));
+                                                              var minX = List.minimum(A2(List.map,
+                                                                                         function (_)
+                                                                                         {
+                                                                                           return _.x;
+                                                                                         },
+                                                                                         path));
+                                                              var maxX = List.maximum(A2(List.map,
+                                                                                         function (_)
+                                                                                         {
+                                                                                           return _.x;
+                                                                                         },
+                                                                                         path));
+                                                              return {ctor: "_Tuple4", _0: maxX, _1: minX, _2: maxY, _3: minY};
+                                                            }();
+                                                   case
+                                                   "[]" :
+                                                     return {ctor: "_Tuple4", _0: 0, _1: 0, _2: 0, _3: 0};}
+                                                  _E.Case($moduleName,"between lines 128 and 134");
+                                                }();
+                                       };
+                          var centerPath = function (path)
+                                           {
+                                             return function ()
+                                                    {
+                                                      var $ = pathBB(path),
+                                                          maxX = $._0,
+                                                          minX = $._1,
+                                                          maxY = $._2,
+                                                          minY = $._3;
+                                                      var offX = maxX - (maxX - minX) / 2.0;
+                                                      var offY = maxY - (maxY - minY) / 2.0;
+                                                      var updatePath = function (c)
+                                                                       {
+                                                                         return _U.replace([["x",
+                                                                                             c.x - offX],
+                                                                                            ["y",
+                                                                                             c.y - offY]],
+                                                                                           c);
+                                                                       };
+                                                      return A2(List.map,updatePath,path);
+                                                    }();
+                                           };
+                          var mkPath = function (start)
+                                       {
+                                         return A2(List.scanl,
+                                                   F2(function (x,y)
+                                                      {
+                                                        return x(y);
+                                                      }),
+                                                   start);
+                                       };
+                          var drawAt = F2(function (form,_v7)
+                                          {
+                                            return function ()
+                                                   {
+                                                     return Graphics.Collage.move({ctor: "_Tuple2", _0: _v7.x, _1: _v7.y})(A2(Graphics.Collage.rotate,
+                                                                                                                              0 - _v7.a,
+                                                                                                                              form));
+                                                   }();
+                                          });
+                          var drawAlong = F2(function (form,path)
+                                             {
+                                               return A2(List.map,drawAt(form),path);
+                                             });
+                          var text = Text.centered;
+                          var startPositions = A2(List.map,
+                                                  F2(function (x,y)
+                                                     {
+                                                       return x * y;
+                                                     })(GameLogic.sTARTOFFSET),
+                                                  _L.range(0,GameLogic.pLAYERCNT - 1));
+                          var endPositions = A2(List.map,
+                                                function (i)
+                                                {
+                                                  return A2(Basics.mod,
+                                                            i - 1 + GameLogic.bOARDSIZE,
+                                                            GameLogic.bOARDSIZE);
+                                                },
+                                                startPositions);
+                          var boardPlaceRCorner = turn(Basics.degrees(360 / GameLogic.pLAYERCNT));
+                          var boardPlaceLCorner = turn(Basics.degrees(0 - 360 / GameLogic.pLAYERCNT));
+                          var playerColors = _J.toList([Color.red,
+                                                        Color.blue,
+                                                        Color.yellow,
+                                                        Color.green]);
+                          var pLACESIZE = 10.0;
+                          var tokenForm = function (col)
+                                          {
+                                            return Graphics.Collage.group(_J.toList([A2(Graphics.Collage.filled,
+                                                                                        Color.black,
+                                                                                        Graphics.Collage.circle(pLACESIZE / 1.8)),
+                                                                                     Graphics.Collage.alpha(0.9)(A2(Graphics.Collage.filled,
+                                                                                                                    col,
+                                                                                                                    Graphics.Collage.circle(pLACESIZE / 1.8))),
+                                                                                     A2(Graphics.Collage.outlined,
+                                                                                        _U.replace([["width",
+                                                                                                     1.5]],
+                                                                                                   Graphics.Collage.defaultLine),
+                                                                                        Graphics.Collage.circle(pLACESIZE / 1.8))]));
+                                          };
+                          var placeForm = A2(Graphics.Collage.outlined,
+                                             Graphics.Collage.defaultLine,
+                                             Graphics.Collage.circle(pLACESIZE));
+                          var startPlaceForm = function (col)
+                                               {
+                                                 return Graphics.Collage.group(_J.toList([A2(Graphics.Collage.filled,
+                                                                                             col,
+                                                                                             Graphics.Collage.circle(pLACESIZE)),
+                                                                                          placeForm]));
+                                               };
+                          var homePlaceForm = function (col)
+                                              {
+                                                return Graphics.Collage.group(_J.toList([A2(Graphics.Collage.filled,
+                                                                                            col,
+                                                                                            Graphics.Collage.circle(pLACESIZE)),
+                                                                                         placeForm]));
+                                              };
+                          var placeShadow = function (col)
+                                            {
+                                              return Graphics.Collage.alpha(0.3)(A2(Graphics.Collage.filled,
+                                                                                    col,
+                                                                                    Graphics.Collage.circle(pLACESIZE)));
+                                            };
+                          var boardPlaceStepSize = pLACESIZE * 3;
+                          var boardDisplaySize = (2 * GameLogic.tOKENCNT + 4) * boardPlaceStepSize;
+                          var boardPlaceStep = step(boardPlaceStepSize);
+                          var boardTraj = List.concat(Util.repeatN(GameLogic.pLAYERCNT)(_L.append(A2(Util.repeatN,
+                                                                                                     GameLogic.tOKENCNT,
+                                                                                                     boardPlaceStep),
+                                                                                                  {ctor: "::", _0: function ($)
+                                                                                                                   {
+                                                                                                                     return boardPlaceStep(boardPlaceLCorner($));
+                                                                                                                   }, _1: _L.append(A2(Util.repeatN,
+                                                                                                                                       GameLogic.tOKENCNT - 1,
+                                                                                                                                       boardPlaceStep),
+                                                                                                                                    {ctor: "::", _0: function ($)
+                                                                                                                                                     {
+                                                                                                                                                       return boardPlaceStep(boardPlaceRCorner($));
+                                                                                                                                                     }, _1: _J.toList([function ($)
+                                                                                                                                                                       {
+                                                                                                                                                                         return boardPlaceRCorner(boardPlaceStep($));
+                                                                                                                                                                       }])})})));
+                          var boardCoords = List.take(GameLogic.bOARDSIZE)(centerPath(A2(mkPath,
+                                                                                         origin,
+                                                                                         boardTraj)));
+                          var startCoords = A2(List.map,
+                                               function (i)
+                                               {
+                                                 return A2(Util._op["!!"],boardCoords,i);
+                                               },
+                                               startPositions);
+                          var endCoords = A2(List.map,
+                                             function (i)
+                                             {
+                                               return A2(Util._op["!!"],boardCoords,i);
+                                             },
+                                             endPositions);
+                          var homeRowTraj = {ctor: "::", _0: function ($)
+                                                             {
+                                                               return boardPlaceStep(turnRight($));
+                                                             }, _1: A2(Util.repeatN,
+                                                                       GameLogic.tOKENCNT - 1,
+                                                                       boardPlaceStep)};
+                          var homeRowCoords = A2(List.map,
+                                                 function (s)
+                                                 {
+                                                   return List.drop(1)(A2(mkPath,s,homeRowTraj));
+                                                 },
+                                                 endCoords);
+                          var startPlacesTraj = _J.toList([function ($)
+                                                           {
+                                                             return boardPlaceStep(boardPlaceStep(boardPlaceStep(turnLeft($))));
+                                                           },
+                                                           function ($)
+                                                           {
+                                                             return turnRight(boardPlaceStep($));
+                                                           },
+                                                           function ($)
+                                                           {
+                                                             return turnRight(boardPlaceStep($));
+                                                           },
+                                                           boardPlaceStep]);
+                          var startPlacesCoords = A2(List.map,
+                                                     function (s)
+                                                     {
+                                                       return List.drop(1)(A2(mkPath,
+                                                                              s,
+                                                                              startPlacesTraj));
+                                                     },
+                                                     startCoords);
+                          var locationCoord = function (_v9)
+                                              {
+                                                return function ()
+                                                       {
+                                                         switch (_v9.ctor)
+                                                         {case
+                                                          "Location" :
+                                                            return _U.cmp(_v9._1,
+                                                                          0) < 0 ? A2(Util._op["!!"],
+                                                                                      A2(Util._op["!!"],
+                                                                                         startPlacesCoords,
+                                                                                         _v9._0),
+                                                                                      0 - _v9._1 - 1) : _U.cmp(_v9._1,
+                                                                                                               GameLogic.bOARDSIZE) > -1 ? A2(Util._op["!!"],
+                                                                                                                                              A2(Util._op["!!"],
+                                                                                                                                                 homeRowCoords,
+                                                                                                                                                 _v9._0),
+                                                                                                                                              _v9._1 - GameLogic.bOARDSIZE) : A2(Util._op["!!"],
+                                                                                                                                                                                 boardCoords,
+                                                                                                                                                                                 GameLogic.absLoc(_v9));}
+                                                         _E.Case($moduleName,
+                                                                 "between lines 63 and 65");
+                                                       }();
+                                              };
+                          var tokenCoord = function (gs)
+                                           {
+                                             return function ($)
+                                                    {
+                                                      return locationCoord(GameLogic.getLocation(gs)($));
+                                                    };
+                                           };
+                          var tokenCoords = function (gs)
+                                            {
+                                              return A2(List.map,
+                                                        function ($)
+                                                        {
+                                                          return List.map(tokenCoord(gs))(GameLogic.playerTokens($));
+                                                        },
+                                                        GameLogic.allPlayers);
+                                            };
+                          var endGameBanner = function (gs)
+                                              {
+                                                return function ()
+                                                       {
+                                                         var _v13 = GameLogic.playersAtHome(gs);
+                                                         switch (_v13.ctor)
+                                                         {case
+                                                          "::" :
+                                                            return _J.toList([Graphics.Collage.alpha(0.9)(Graphics.Collage.filled(Color.white)(A2(Graphics.Collage.rect,
+                                                                                                                                                  300,
+                                                                                                                                                  150))),
+                                                                              Graphics.Collage.move({ctor: "_Tuple2", _0: 0, _1: 20})(Graphics.Collage.scale(3)(Graphics.Collage.toForm(text(Text.toText("Game Over"))))),
+                                                                              Graphics.Collage.move({ctor: "_Tuple2", _0: -35, _1: -21})(homePlaceForm(A2(Util._op["!!"],
+                                                                                                                                                          playerColors,
+                                                                                                                                                          _v13._0))),
+                                                                              Graphics.Collage.move({ctor: "_Tuple2", _0: pLACESIZE, _1: -18})(Graphics.Collage.scale(2)(Graphics.Collage.toForm(text(Text.toText("won"))))),
+                                                                              Graphics.Collage.move({ctor: "_Tuple2", _0: 0, _1: -40})(Graphics.Collage.toForm(text(Text.toText("refresh to start new game"))))]);
+                                                          case
+                                                          "[]" :
+                                                            return _J.toList([]);}
+                                                         _E.Case($moduleName,
+                                                                 "between lines 100 and 112");
+                                                       }();
+                                              };
+                          var drawGame = F2(function (_v16,gs)
+                                            {
+                                              return function ()
+                                                     {
+                                                       switch (_v16.ctor)
+                                                       {case
+                                                        "_Tuple2" :
+                                                          return Graphics.Element.flow(Graphics.Element.down)(_J.toList([A2(Graphics.Collage.collage,
+                                                                                                                            _v16._0,
+                                                                                                                            _v16._1)(_L.append(A3(List.zipWith,
+                                                                                                                                                  drawAt,
+                                                                                                                                                  A2(List.map,
+                                                                                                                                                     placeShadow,
+                                                                                                                                                     playerColors),
+                                                                                                                                                  startCoords),
+                                                                                                                                               _L.append(A2(drawAlong,
+                                                                                                                                                            placeForm,
+                                                                                                                                                            boardCoords),
+                                                                                                                                                         _L.append(List.concat(A3(List.zipWith,
+                                                                                                                                                                                  drawAlong,
+                                                                                                                                                                                  A2(List.map,
+                                                                                                                                                                                     homePlaceForm,
+                                                                                                                                                                                     playerColors),
+                                                                                                                                                                                  homeRowCoords)),
+                                                                                                                                                                   _L.append(List.concat(A3(List.zipWith,
+                                                                                                                                                                                            drawAlong,
+                                                                                                                                                                                            A2(List.map,
+                                                                                                                                                                                               startPlaceForm,
+                                                                                                                                                                                               playerColors),
+                                                                                                                                                                                            startPlacesCoords)),
+                                                                                                                                                                             _L.append(List.concat(A3(List.zipWith,
+                                                                                                                                                                                                      drawAlong,
+                                                                                                                                                                                                      A2(List.map,
+                                                                                                                                                                                                         tokenForm,
+                                                                                                                                                                                                         playerColors),
+                                                                                                                                                                                                      tokenCoords(gs))),
+                                                                                                                                                                                       _L.append(_J.toList([Graphics.Collage.scale(2)(Graphics.Collage.toForm(text(Text.color(A2(Util._op["!!"],
+                                                                                                                                                                                                                                                                                 playerColors,
+                                                                                                                                                                                                                                                                                 gs.currentPlayer))(Text.toText(String.show(gs.die))))))]),
+                                                                                                                                                                                                 _L.append(endGameBanner(gs),
+                                                                                                                                                                                                           _J.toList([Graphics.Collage.move({ctor: "_Tuple2", _0: 0, _1: (0 - boardDisplaySize) / 2})(Graphics.Collage.toForm(Graphics.Element.flow(Graphics.Element.down)(A2(List.map,
+                                                                                                                                                                                                                                                                                                                                                                              function ($)
+                                                                                                                                                                                                                                                                                                                                                                              {
+                                                                                                                                                                                                                                                                                                                                                                                return text(Text.toText($));
+                                                                                                                                                                                                                                                                                                                                                                              },
+                                                                                                                                                                                                                                                                                                                                                                              A2(List.take,
+                                                                                                                                                                                                                                                                                                                                                                                 1,
+                                                                                                                                                                                                                                                                                                                                                                                 gs.log)))))])))))))))]));}
+                                                       _E.Case($moduleName,
+                                                               "between lines 79 and 95");
+                                                     }();
+                                            });
+                          _elm.BoardDrawing.values = {_op: _op, pLACESIZE: pLACESIZE, tokenForm: tokenForm, placeForm: placeForm, startPlaceForm: startPlaceForm, homePlaceForm: homePlaceForm, placeShadow: placeShadow, playerColors: playerColors, boardPlaceStepSize: boardPlaceStepSize, boardDisplaySize: boardDisplaySize, boardPlaceStep: boardPlaceStep, boardPlaceLCorner: boardPlaceLCorner, boardPlaceRCorner: boardPlaceRCorner, boardTraj: boardTraj, homeRowTraj: homeRowTraj, startPlacesTraj: startPlacesTraj, startPositions: startPositions, endPositions: endPositions, boardCoords: boardCoords, startCoords: startCoords, endCoords: endCoords, homeRowCoords: homeRowCoords, startPlacesCoords: startPlacesCoords, locationCoord: locationCoord, tokenCoord: tokenCoord, tokenCoords: tokenCoords, drawGame: drawGame, text: text, endGameBanner: endGameBanner, drawAlong: drawAlong, drawAt: drawAt, mkPath: mkPath, pathBB: pathBB, centerPath: centerPath, origin: origin, step: step, turn: turn, turnLeft: turnLeft, turnRight: turnRight, Corner: Corner};
+                          return _elm.BoardDrawing.values;
+                        };Elm.GameLogic = Elm.GameLogic || {};
+Elm.GameLogic.make = function (_elm)
+                     {
+                       "use strict";
+                       _elm.GameLogic = _elm.GameLogic || {};
+                       if (_elm.GameLogic.values)
+                       return _elm.GameLogic.values;
+                       var _N = Elm.Native,
+                           _U = _N.Utils.make(_elm),
+                           _L = _N.List.make(_elm),
+                           _E = _N.Error.make(_elm),
+                           _J = _N.JavaScript.make(_elm),
+                           $moduleName = "GameLogic";
+                       var Basics = Elm.Basics.make(_elm);
+                       var Color = Elm.Color.make(_elm);
+                       var Dict = Elm.Dict.make(_elm);
+                       var Either = Elm.Either.make(_elm);
+                       var Graphics = Graphics || {};
+                       Graphics.Collage = Elm.Graphics.Collage.make(_elm);
+                       var Graphics = Graphics || {};
+                       Graphics.Element = Elm.Graphics.Element.make(_elm);
+                       var List = Elm.List.make(_elm);
+                       var Maybe = Elm.Maybe.make(_elm);
+                       var Native = Native || {};
+                       Native.Ports = Elm.Native.Ports.make(_elm);
+                       var Signal = Elm.Signal.make(_elm);
+                       var String = Elm.String.make(_elm);
+                       var Text = Elm.Text.make(_elm);
+                       var Time = Elm.Time.make(_elm);
+                       var Util = Elm.Util.make(_elm);
+                       var _op = {};
+                       _op[">|>"] = F5(function (f,g,gs,tokA,tokB)
+                                       {
+                                         return A3(f,gs,tokA,tokB) && A3(f,gs,tokB,tokA) ? A3(g,
+                                                                                              gs,
+                                                                                              tokA,
+                                                                                              tokB) : A3(f,
+                                                                                                         gs,
+                                                                                                         tokA,
+                                                                                                         tokB);
+                                       });
+                       var betterToSatisfy = F4(function (cond,gs,tokA,tokB)
+                                                {
+                                                  return A2(cond,gs,tokA) || Basics.not(A2(cond,
+                                                                                           gs,
+                                                                                           tokB));
+                                                });
+                       var NoCmd = {ctor: "NoCmd"};
+                       var CancelMove = {ctor: "CancelMove"};
+                       var MoveToken = function (a)
+                                       {
+                                         return {ctor: "MoveToken", _0: a};
+                                       };
+                       var EndOfTurn = {ctor: "EndOfTurn"};
+                       var pushCmd = F2(function (cmd,gs)
+                                        {
+                                          return _U.replace([["trace",
+                                                              {ctor: "::", _0: cmd, _1: gs.trace}]],
+                                                            gs);
+                                        });
+                       var logMsg = F2(function (msg,gs)
+                                       {
+                                         return _U.replace([["log",
+                                                             {ctor: "::", _0: msg, _1: gs.log}]],
+                                                           gs);
+                                       });
+                       var GameState = F5(function (a,b,c,d,e)
+                                          {
+                                            return {_: {}, currentPlayer: a, die: b, log: d, randSeed: e, tokenLoc: c};
+                                          });
+                       var Location = F2(function (a,b)
+                                         {
+                                           return {ctor: "Location", _0: a, _1: b};
+                                         });
+                       var firstLocation = function (p)
+                                           {
+                                             return A2(Location,p,0);
+                                           };
+                       var isStartLocation = function (_v0)
+                                             {
+                                               return function ()
+                                                      {
+                                                        switch (_v0.ctor)
+                                                        {case
+                                                         "Location" :
+                                                           return _U.cmp(_v0._1,0) < 0;}
+                                                        _E.Case($moduleName,
+                                                                "on line 46, column 34 to 39");
+                                                      }();
+                                             };
+                       var Token = F2(function (a,b)
+                                      {
+                                        return {ctor: "Token", _0: a, _1: b};
+                                      });
+                       var getLocation = F2(function (gs,_v4)
+                                            {
+                                              return function ()
+                                                     {
+                                                       switch (_v4.ctor)
+                                                       {case
+                                                        "Token" :
+                                                          return function ()
+                                                                 {
+                                                                   var _v8 = A2(Dict.lookup,
+                                                                                {ctor: "_Tuple2", _0: _v4._0, _1: _v4._1},
+                                                                                gs.tokenLoc);
+                                                                   switch (_v8.ctor)
+                                                                   {case
+                                                                    "Just" :
+                                                                      return _v8._0;}
+                                                                   _E.Case($moduleName,
+                                                                           "between lines 118 and 120");
+                                                                 }();}
+                                                       _E.Case($moduleName,
+                                                               "between lines 118 and 120");
+                                                     }();
+                                            });
+                       var isAheadOf = F3(function (gs,tokA,tokB)
+                                          {
+                                            return function ()
+                                                   {
+                                                     var $ = A2(getLocation,gs,tokB);
+                                                     var lB = function ()
+                                                              {
+                                                                switch ($.ctor)
+                                                                {case
+                                                                 "Location" :
+                                                                   return $._1;}
+                                                                _E.Case($moduleName,
+                                                                        "on line 296, column 27 to 46");
+                                                              }();
+                                                     var $ = A2(getLocation,gs,tokA);
+                                                     var lA = function ()
+                                                              {
+                                                                switch ($.ctor)
+                                                                {case
+                                                                 "Location" :
+                                                                   return $._1;}
+                                                                _E.Case($moduleName,
+                                                                        "on line 295, column 27 to 46");
+                                                              }();
+                                                     return _U.cmp(lA,lB) > -1;
+                                                   }();
+                                          });
+                       var hedgeStrategy = F3(function (gs,tokA,tokB)
+                                              {
+                                                return A3(isAheadOf,gs,tokB,tokA);
+                                              });
+                       var setLocation = F3(function (_v16,loc,gs)
+                                            {
+                                              return function ()
+                                                     {
+                                                       switch (_v16.ctor)
+                                                       {case
+                                                        "Token" :
+                                                          return _U.replace([["tokenLoc",
+                                                                              A3(Dict.insert,
+                                                                                 {ctor: "_Tuple2", _0: _v16._0, _1: _v16._1},
+                                                                                 loc,
+                                                                                 gs.tokenLoc)]],
+                                                                            gs);}
+                                                       _E.Case($moduleName,
+                                                               "on line 124, column 10 to 57");
+                                                     }();
+                                            });
+                       var tOKENCNT = 4;
+                       var sTARTOFFSET = 2 + 2 * tOKENCNT;
+                       var playerTokens = function (player)
+                                          {
+                                            return A2(List.map,
+                                                      Token(player),
+                                                      _L.range(0,tOKENCNT - 1));
+                                          };
+                       var startLocations = function (p)
+                                            {
+                                              return A2(List.map,
+                                                        function ($)
+                                                        {
+                                                          return Location(p)(F2(function (x,y)
+                                                                                {
+                                                                                  return x * y;
+                                                                                })(-1)($));
+                                                        },
+                                                        _L.range(1,tOKENCNT));
+                                            };
+                       var pLAYERCNT = 4;
+                       var bOARDSIZE = pLAYERCNT * sTARTOFFSET;
+                       var isHomeLocation = function (_v20)
+                                            {
+                                              return function ()
+                                                     {
+                                                       switch (_v20.ctor)
+                                                       {case
+                                                        "Location" :
+                                                          return _U.cmp(_v20._1,bOARDSIZE) > -1;}
+                                                       _E.Case($moduleName,
+                                                               "on line 49, column 33 to 47");
+                                                     }();
+                                            };
+                       var isBoardLocation = function (loc)
+                                             {
+                                               return Basics.not(isStartLocation(loc) || isHomeLocation(loc));
+                                             };
+                       var isAtHome = function (gs)
+                                      {
+                                        return function ($)
+                                               {
+                                                 return isHomeLocation(getLocation(gs)($));
+                                               };
+                                      };
+                       var eagerStrategy = A2(_op[">|>"],
+                                              betterToSatisfy(function (gs)
+                                                              {
+                                                                return function ($)
+                                                                       {
+                                                                         return Basics.not(isAtHome(gs)($));
+                                                                       };
+                                                              }),
+                                              isAheadOf);
+                       var isValidLocation = function (_v24)
+                                             {
+                                               return function ()
+                                                      {
+                                                        switch (_v24.ctor)
+                                                        {case
+                                                         "Location" :
+                                                           return _U.cmp(0 - tOKENCNT,
+                                                                         _v24._1) < 1 && _U.cmp(_v24._1,
+                                                                                                bOARDSIZE + tOKENCNT) < 0;}
+                                                        _E.Case($moduleName,
+                                                                "on line 52, column 34 to 74");
+                                                      }();
+                                             };
+                       var absLoc = function (_v28)
+                                    {
+                                      return function ()
+                                             {
+                                               switch (_v28.ctor)
+                                               {case
+                                                "Location" :
+                                                  return _U.cmp(_v28._1,
+                                                                0) < 0 ? _v28._1 : _U.cmp(_v28._1,
+                                                                                          bOARDSIZE) > -1 ? _v28._1 : A2(Basics.mod,
+                                                                                                                         sTARTOFFSET * _v28._0 + _v28._1,
+                                                                                                                         bOARDSIZE);}
+                                               _E.Case($moduleName,"between lines 65 and 67");
+                                             }();
+                                    };
+                       var isSameLocation = F2(function (_v32,_v33)
+                                               {
+                                                 return function ()
+                                                        {
+                                                          switch (_v33.ctor)
+                                                          {case
+                                                           "Location" :
+                                                             return function ()
+                                                                    {
+                                                                      switch (_v32.ctor)
+                                                                      {case
+                                                                       "Location" :
+                                                                         return _U.eq(_v32._0,
+                                                                                      _v33._0) ? _U.eq(_v32._1,
+                                                                                                       _v33._1) : Basics.not(isBoardLocation(_v32) && isBoardLocation(_v33)) ? false : _U.eq(absLoc(_v32),
+                                                                                                                                                                                             absLoc(_v33));}
+                                                                      _E.Case($moduleName,
+                                                                              "between lines 59 and 61");
+                                                                    }();}
+                                                          _E.Case($moduleName,
+                                                                  "between lines 59 and 61");
+                                                        }();
+                                               });
+                       var returnToStart = F2(function (_v40,gs)
+                                              {
+                                                return function ()
+                                                       {
+                                                         switch (_v40.ctor)
+                                                         {case
+                                                          "Token" :
+                                                            return function ()
+                                                                   {
+                                                                     var occupied = List.filter(isStartLocation)(A2(List.map,
+                                                                                                                    getLocation(gs),
+                                                                                                                    playerTokens(_v40._0)));
+                                                                     var isNotOccupied = function (loc)
+                                                                                         {
+                                                                                           return Basics.not(A2(List.any,
+                                                                                                                isSameLocation(loc),
+                                                                                                                occupied));
+                                                                                         };
+                                                                     var freeLocs = A2(List.filter,
+                                                                                       isNotOccupied,
+                                                                                       startLocations(_v40._0));
+                                                                     var currentLoc = A2(getLocation,
+                                                                                         gs,
+                                                                                         _v40);
+                                                                     var newLoc = isStartLocation(currentLoc) ? currentLoc : function ()
+                                                                                                                             {
+                                                                                                                               switch (freeLocs.ctor)
+                                                                                                                               {case
+                                                                                                                                "::" :
+                                                                                                                                  return freeLocs._0;
+                                                                                                                                case
+                                                                                                                                "[]" :
+                                                                                                                                  return A2(Location,
+                                                                                                                                            _v40._0,
+                                                                                                                                            0 - _v40._1 - 1);}
+                                                                                                                               _E.Case($moduleName,
+                                                                                                                                       "between lines 145 and 148");
+                                                                                                                             }();
+                                                                     return A3(setLocation,
+                                                                               _v40,
+                                                                               newLoc,
+                                                                               gs);
+                                                                   }();}
+                                                         _E.Case($moduleName,
+                                                                 "between lines 143 and 153");
+                                                       }();
+                                              });
+                       var locationDistance = F2(function (_v47,_v48)
+                                                 {
+                                                   return function ()
+                                                          {
+                                                            switch (_v48.ctor)
+                                                            {case
+                                                             "Location" :
+                                                               return function ()
+                                                                      {
+                                                                        switch (_v47.ctor)
+                                                                        {case
+                                                                         "Location" :
+                                                                           return isHomeLocation(_v47) || isHomeLocation(_v48) ? Maybe.Nothing : Maybe.Just(absLoc(A2(Location,
+                                                                                                                                                                      _v47._0,
+                                                                                                                                                                      A2(Basics.max,
+                                                                                                                                                                         _v47._1,
+                                                                                                                                                                         0))) - absLoc(A2(Location,
+                                                                                                                                                                                          _v48._0,
+                                                                                                                                                                                          A2(Basics.max,
+                                                                                                                                                                                             _v48._1,
+                                                                                                                                                                                             0))));}
+                                                                        _E.Case($moduleName,
+                                                                                "between lines 79 and 81");
+                                                                      }();}
+                                                            _E.Case($moduleName,
+                                                                    "between lines 79 and 81");
+                                                          }();
+                                                 });
+                       var advanceLocation = F2(function (dist,_v55)
+                                                {
+                                                  return function ()
+                                                         {
+                                                           switch (_v55.ctor)
+                                                           {case
+                                                            "Location" :
+                                                              return function ()
+                                                                     {
+                                                                       var target = _v55._1 + dist;
+                                                                       var maxPosLen = bOARDSIZE + tOKENCNT - 1;
+                                                                       var newPos = target - 2 * A2(Basics.max,
+                                                                                                    0,
+                                                                                                    target - maxPosLen);
+                                                                       return A2(Location,
+                                                                                 _v55._0,
+                                                                                 newPos);
+                                                                     }();}
+                                                           _E.Case($moduleName,
+                                                                   "between lines 71 and 74");
+                                                         }();
+                                                });
+                       var advanceToken = F3(function (_v59,dist,gs)
+                                             {
+                                               return function ()
+                                                      {
+                                                        switch (_v59.ctor)
+                                                        {case
+                                                         "Token" :
+                                                           return function ()
+                                                                  {
+                                                                    var currentLoc = A2(getLocation,
+                                                                                        gs,
+                                                                                        _v59);
+                                                                    var newLoc = A2(advanceLocation,
+                                                                                    dist,
+                                                                                    currentLoc);
+                                                                    return _U.replace([["tokenLoc",
+                                                                                        A3(Dict.insert,
+                                                                                           {ctor: "_Tuple2", _0: _v59._0, _1: _v59._1},
+                                                                                           newLoc,
+                                                                                           gs.tokenLoc)]],
+                                                                                      gs);
+                                                                  }();}
+                                                        _E.Case($moduleName,
+                                                                "between lines 134 and 136");
+                                                      }();
+                                             });
+                       var getTargetLocation = F2(function (gs,_v63)
+                                                  {
+                                                    return function ()
+                                                           {
+                                                             switch (_v63.ctor)
+                                                             {case
+                                                              "Token" :
+                                                                return function ()
+                                                                       {
+                                                                         var currentLoc = A2(getLocation,
+                                                                                             gs,
+                                                                                             _v63);
+                                                                         return isStartLocation(currentLoc) ? firstLocation(_v63._0) : A2(advanceLocation,
+                                                                                                                                          gs.die,
+                                                                                                                                          currentLoc);
+                                                                       }();}
+                                                             _E.Case($moduleName,
+                                                                     "between lines 192 and 195");
+                                                           }();
+                                                  });
+                       var allPlayers = _L.range(0,pLAYERCNT - 1);
+                       var playersAtHome = function (gs)
+                                           {
+                                             return A2(List.filter,
+                                                       function ($)
+                                                       {
+                                                         return List.all(isAtHome(gs))(playerTokens($));
+                                                       },
+                                                       allPlayers);
+                                           };
+                       var gameOver = function ($)
+                                      {
+                                        return Basics.not(List.isEmpty(playersAtHome($)));
+                                      };
+                       var allTokens = A2(List.map,
+                                          Basics.uncurry(Token),
+                                          A2(Util.combinations,
+                                             _L.range(0,pLAYERCNT - 1),
+                                             _L.range(0,tOKENCNT - 1)));
+                       var lookupOccupant = F2(function (gs,loc)
+                                               {
+                                                 return function ()
+                                                        {
+                                                          var _v67 = A2(List.filter,
+                                                                        function ($)
+                                                                        {
+                                                                          return isSameLocation(loc)(getLocation(gs)($));
+                                                                        },
+                                                                        allTokens);
+                                                          switch (_v67.ctor)
+                                                          {case
+                                                           "::" :
+                                                             return Maybe.Just(_v67._0);
+                                                           case
+                                                           "[]" :
+                                                             return Maybe.Nothing;}
+                                                          _E.Case($moduleName,
+                                                                  "between lines 128 and 130");
+                                                        }();
+                                               });
+                       var emptyLocation = F2(function (loc,gs)
+                                              {
+                                                return function ()
+                                                       {
+                                                         var _v70 = A2(lookupOccupant,gs,loc);
+                                                         switch (_v70.ctor)
+                                                         {case
+                                                          "Just" :
+                                                            return A2(returnToStart,_v70._0,gs);
+                                                          case
+                                                          "Nothing" :
+                                                            return gs;}
+                                                         _E.Case($moduleName,
+                                                                 "between lines 157 and 160");
+                                                       }();
+                                              });
+                       var hitsOpponent = function (gs)
+                                          {
+                                            return function ($)
+                                                   {
+                                                     return Maybe.isJust(lookupOccupant(gs)(getTargetLocation(gs)($)));
+                                                   };
+                                          };
+                       var aggressiveStyle = betterToSatisfy(hitsOpponent);
+                       var activeTokens = function (gs)
+                                          {
+                                            return A2(List.filter,
+                                                      function ($)
+                                                      {
+                                                        return isBoardLocation(getLocation(gs)($));
+                                                      },
+                                                      allTokens);
+                                          };
+                       var initTokenLoc = function ()
+                                          {
+                                            var unpackedAllTokens = A2(Util.combinations,
+                                                                       _L.range(0,pLAYERCNT - 1),
+                                                                       _L.range(0,tOKENCNT - 1));
+                                            var mkStartLoc = function (_v72)
+                                                             {
+                                                               return function ()
+                                                                      {
+                                                                        switch (_v72.ctor)
+                                                                        {case
+                                                                         "Token" :
+                                                                           return A2(Location,
+                                                                                     _v72._0,
+                                                                                     0 - _v72._1 - 1);}
+                                                                        _E.Case($moduleName,
+                                                                                "on line 104, column 34 to 52");
+                                                                      }();
+                                                             };
+                                            return Dict.fromList(List.zip(unpackedAllTokens)(A2(List.map,
+                                                                                                mkStartLoc,
+                                                                                                allTokens)));
+                                          }();
+                       var initGameState = {_: {}, currentPlayer: 0, die: 6, log: _J.toList([]), randSeed: 3571, tokenLoc: initTokenLoc};
+                       var newGame = function (gs)
+                                     {
+                                       return _U.replace([["tokenLoc",initTokenLoc],
+                                                          ["currentPlayer",
+                                                           A2(Basics.mod,gs.randSeed,pLAYERCNT)]],
+                                                         gs);
+                                     };
+                       var nextPlayer = function (gs)
+                                        {
+                                          return _U.replace([["currentPlayer",
+                                                              A2(Basics.mod,
+                                                                 gs.currentPlayer + 1,
+                                                                 pLAYERCNT)]],
+                                                            gs);
+                                        };
+                       var dIESIZE = 6;
+                       var throwDice = function (gs)
+                                       {
+                                         return function ()
+                                                {
+                                                  var z = 3559 * gs.die + gs.randSeed;
+                                                  return _U.replace([["die",
+                                                                      A2(Basics.mod,z,dIESIZE) + 1],
+                                                                     ["randSeed",z / dIESIZE | 0]],
+                                                                    gs);
+                                                }();
+                                       };
+                       var endOfTurn = function ($)
+                                       {
+                                         return throwDice(nextPlayer($));
+                                       };
+                       var seedRand = F2(function (seed,gs)
+                                         {
+                                           return _U.replace([["die",
+                                                               A2(Basics.mod,seed,dIESIZE) + 1]],
+                                                             gs);
+                                         });
+                       var tryMove = F2(function (gs,_v76)
+                                        {
+                                          return function ()
+                                                 {
+                                                   switch (_v76.ctor)
+                                                   {case
+                                                    "Token" :
+                                                      return function ()
+                                                             {
+                                                               var targetLoc = A2(getTargetLocation,
+                                                                                  gs,
+                                                                                  _v76);
+                                                               var isOccupiedByOwner = function ()
+                                                                                       {
+                                                                                         var _v80 = A2(lookupOccupant,
+                                                                                                       gs,
+                                                                                                       targetLoc);
+                                                                                         switch (_v80.ctor)
+                                                                                         {case
+                                                                                          "Just" :
+                                                                                            switch (_v80._0.ctor)
+                                                                                            {case
+                                                                                             "Token" :
+                                                                                               return _U.eq(_v80._0._0,
+                                                                                                            _v76._0);}
+                                                                                            break;
+                                                                                          case
+                                                                                          "Nothing" :
+                                                                                            return false;}
+                                                                                         _E.Case($moduleName,
+                                                                                                 "between lines 203 and 207");
+                                                                                       }();
+                                                               var currentLoc = A2(getLocation,
+                                                                                   gs,
+                                                                                   _v76);
+                                                               return ! _U.eq(gs.currentPlayer,
+                                                                              _v76._0) ? Either.Left("Not token of current player") : isStartLocation(currentLoc) && ! _U.eq(gs.die,
+                                                                                                                                                                             dIESIZE) ? Either.Left("Can only enter a token on six") : isOccupiedByOwner ? Either.Left("Target location already occupied by current player") : isStartLocation(currentLoc) && _U.eq(gs.die,
+                                                                                                                                                                                                                                                                                                                                                                    dIESIZE) ? Either.Right(throwDice(A2(setLocation,
+                                                                                                                                                                                                                                                                                                                                                                                                         _v76,
+                                                                                                                                                                                                                                                                                                                                                                                                         firstLocation(_v76._0))(A2(emptyLocation,
+                                                                                                                                                                                                                                                                                                                                                                                                                                    targetLoc,
+                                                                                                                                                                                                                                                                                                                                                                                                                                    gs)))) : Either.Right((_U.eq(gs.die,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                 dIESIZE) ? throwDice : endOfTurn)(A2(advanceToken,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      _v76,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      gs.die)(A2(emptyLocation,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 targetLoc,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 gs))));
+                                                             }();}
+                                                   _E.Case($moduleName,"between lines 200 and 222");
+                                                 }();
+                                        });
+                       var moveableTokens = F2(function (gs,player)
+                                               {
+                                                 return A2(List.filter,
+                                                           function ($)
+                                                           {
+                                                             return Either.isRight(tryMove(gs)($));
+                                                           },
+                                                           playerTokens(player));
+                                               });
+                       var advanceOnBlocked = function (gs)
+                                              {
+                                                return function ()
+                                                       {
+                                                         var _v84 = A2(moveableTokens,
+                                                                       gs,
+                                                                       gs.currentPlayer);
+                                                         switch (_v84.ctor)
+                                                         {case
+                                                          "[]" :
+                                                            return logMsg("No possible moves, passing turn")(endOfTurn(gs));}
+                                                         return gs;
+                                                       }();
+                                              };
+                       var execCmd = F2(function (cmd,gs)
+                                        {
+                                          return function ()
+                                                 {
+                                                   switch (cmd.ctor)
+                                                   {case
+                                                    "MoveToken" :
+                                                      return function ()
+                                                             {
+                                                               var _v87 = A2(tryMove,gs,cmd._0);
+                                                               switch (_v87.ctor)
+                                                               {case
+                                                                "Left" :
+                                                                  return advanceOnBlocked(A2(logMsg,
+                                                                                             _v87._0,
+                                                                                             gs));
+                                                                case
+                                                                "Right" :
+                                                                  return _v87._0;}
+                                                               _E.Case($moduleName,
+                                                                       "between lines 242 and 246");
+                                                             }();
+                                                    case
+                                                    "NoCmd" :
+                                                      return advanceOnBlocked(gs);}
+                                                   return A2(logMsg,String.show(cmd),gs);
+                                                 }();
+                                        });
+                       var computerPlayer = F3(function (strategy,player,gs)
+                                               {
+                                                 return function ()
+                                                        {
+                                                          var isWorseCmd = F2(function (x,y)
+                                                                              {
+                                                                                return function ()
+                                                                                       {
+                                                                                         var _v90 = {ctor: "_Tuple2", _0: x, _1: y};
+                                                                                         switch (_v90.ctor)
+                                                                                         {case
+                                                                                          "_Tuple2" :
+                                                                                            switch (_v90._0.ctor)
+                                                                                            {case
+                                                                                             "MoveToken" :
+                                                                                               switch (_v90._1.ctor)
+                                                                                               {case
+                                                                                                "MoveToken" :
+                                                                                                  return A3(strategy,
+                                                                                                            gs,
+                                                                                                            _v90._1._0,
+                                                                                                            _v90._0._0);
+                                                                                                case
+                                                                                                "NoCmd" :
+                                                                                                  return false;}
+                                                                                               break;
+                                                                                             case
+                                                                                             "NoCmd" :
+                                                                                               switch (_v90._1.ctor)
+                                                                                               {case
+                                                                                                "MoveToken" :
+                                                                                                  return true;}
+                                                                                               break;}
+                                                                                            break;}
+                                                                                         return true;
+                                                                                       }();
+                                                                              });
+                                                          var moveable = A2(List.filter,
+                                                                            function ($)
+                                                                            {
+                                                                              return Either.isRight(tryMove(gs)($));
+                                                                            },
+                                                                            playerTokens(player));
+                                                          return A3(Util.greatest,
+                                                                    isWorseCmd,
+                                                                    NoCmd,
+                                                                    A2(List.map,
+                                                                       MoveToken,
+                                                                       moveable));
+                                                        }();
+                                               });
+                       var canBeHit = F2(function (gs,_v96)
+                                         {
+                                           return function ()
+                                                  {
+                                                    switch (_v96.ctor)
+                                                    {case
+                                                     "Token" :
+                                                       return function ()
+                                                              {
+                                                                var isHittingDist = function (dist)
+                                                                                    {
+                                                                                      return function ()
+                                                                                             {
+                                                                                               switch (dist.ctor)
+                                                                                               {case
+                                                                                                "Just" :
+                                                                                                  return _U.cmp(dist._0,
+                                                                                                                dIESIZE) < 1;
+                                                                                                case
+                                                                                                "Nothing" :
+                                                                                                  return false;}
+                                                                                               _E.Case($moduleName,
+                                                                                                       "between lines 283 and 287");
+                                                                                             }();
+                                                                                    };
+                                                                var tokLoc = A2(getLocation,
+                                                                                gs,
+                                                                                _v96);
+                                                                var differentOwner = function (_v102)
+                                                                                     {
+                                                                                       return function ()
+                                                                                              {
+                                                                                                switch (_v102.ctor)
+                                                                                                {case
+                                                                                                 "Token" :
+                                                                                                   return ! _U.eq(_v102._0,
+                                                                                                                  _v96._0);}
+                                                                                                _E.Case($moduleName,
+                                                                                                        "on line 279, column 39 to 46");
+                                                                                              }();
+                                                                                     };
+                                                                var otherTokens = A2(List.filter,
+                                                                                     differentOwner,
+                                                                                     allTokens);
+                                                                var tokenDistances = A2(List.map,
+                                                                                        function ($)
+                                                                                        {
+                                                                                          return locationDistance(tokLoc)(getLocation(gs)($));
+                                                                                        },
+                                                                                        otherTokens);
+                                                                return A2(List.any,
+                                                                          isHittingDist,
+                                                                          tokenDistances);
+                                                              }();}
+                                                    _E.Case($moduleName,
+                                                            "between lines 278 and 287");
+                                                  }();
+                                         });
+                       var defensiveStyle = betterToSatisfy(canBeHit);
+                       _elm.GameLogic.values = {_op: _op, dIESIZE: dIESIZE, pLAYERCNT: pLAYERCNT, tOKENCNT: tOKENCNT, sTARTOFFSET: sTARTOFFSET, bOARDSIZE: bOARDSIZE, allPlayers: allPlayers, allTokens: allTokens, playerTokens: playerTokens, startLocations: startLocations, firstLocation: firstLocation, isStartLocation: isStartLocation, isHomeLocation: isHomeLocation, isValidLocation: isValidLocation, isBoardLocation: isBoardLocation, isSameLocation: isSameLocation, absLoc: absLoc, advanceLocation: advanceLocation, locationDistance: locationDistance, initGameState: initGameState, initTokenLoc: initTokenLoc, newGame: newGame, getLocation: getLocation, setLocation: setLocation, lookupOccupant: lookupOccupant, advanceToken: advanceToken, logMsg: logMsg, pushCmd: pushCmd, returnToStart: returnToStart, emptyLocation: emptyLocation, throwDice: throwDice, seedRand: seedRand, nextPlayer: nextPlayer, endOfTurn: endOfTurn, playersAtHome: playersAtHome, gameOver: gameOver, activeTokens: activeTokens, getTargetLocation: getTargetLocation, tryMove: tryMove, moveableTokens: moveableTokens, advanceOnBlocked: advanceOnBlocked, execCmd: execCmd, betterToSatisfy: betterToSatisfy, hitsOpponent: hitsOpponent, canBeHit: canBeHit, isAtHome: isAtHome, isAheadOf: isAheadOf, defensiveStyle: defensiveStyle, aggressiveStyle: aggressiveStyle, eagerStrategy: eagerStrategy, hedgeStrategy: hedgeStrategy, computerPlayer: computerPlayer, Token: Token, Location: Location, EndOfTurn: EndOfTurn, MoveToken: MoveToken, CancelMove: CancelMove, NoCmd: NoCmd, GameState: GameState};
+                       return _elm.GameLogic.values;
+                     };Elm.Util = Elm.Util || {};
+Elm.Util.make = function (_elm)
+                {
+                  "use strict";
+                  _elm.Util = _elm.Util || {};
+                  if (_elm.Util.values)
+                  return _elm.Util.values;
+                  var _N = Elm.Native,
+                      _U = _N.Utils.make(_elm),
+                      _L = _N.List.make(_elm),
+                      _E = _N.Error.make(_elm),
+                      _J = _N.JavaScript.make(_elm),
+                      $moduleName = "Util";
+                  var Basics = Elm.Basics.make(_elm);
+                  var Color = Elm.Color.make(_elm);
+                  var Dict = Elm.Dict.make(_elm);
+                  var Graphics = Graphics || {};
+                  Graphics.Collage = Elm.Graphics.Collage.make(_elm);
+                  var Graphics = Graphics || {};
+                  Graphics.Element = Elm.Graphics.Element.make(_elm);
+                  var List = Elm.List.make(_elm);
+                  var Maybe = Elm.Maybe.make(_elm);
+                  var Native = Native || {};
+                  Native.Ports = Elm.Native.Ports.make(_elm);
+                  var Random = Elm.Random.make(_elm);
+                  var Set = Elm.Set.make(_elm);
+                  var Signal = Elm.Signal.make(_elm);
+                  var String = Elm.String.make(_elm);
+                  var Text = Elm.Text.make(_elm);
+                  var Time = Elm.Time.make(_elm);
+                  var Transform2D = Elm.Transform2D.make(_elm);
+                  var _op = {};
+                  var least = function (isLE)
+                              {
+                                return function ()
+                                       {
+                                         var min = F2(function (x,y)
+                                                      {
+                                                        return A2(isLE,x,y) ? x : y;
+                                                      });
+                                         return List.foldr(min);
+                                       }();
+                              };
+                  var greatest = function (cmp)
+                                 {
+                                   return least(F2(function (x,y)
+                                                   {
+                                                     return A2(cmp,y,x);
+                                                   }));
+                                 };
+                  var combinations = F2(function (lstA,lstB)
+                                        {
+                                          return function ()
+                                                 {
+                                                   switch (lstA.ctor)
+                                                   {case
+                                                    "::" :
+                                                      return _L.append(A2(List.map,
+                                                                          F2(function (v0,v1)
+                                                                             {
+                                                                               return {ctor: "_Tuple2", _0: v0, _1: v1};
+                                                                             })(lstA._0),
+                                                                          lstB),
+                                                                       A2(combinations,
+                                                                          lstA._1,
+                                                                          lstB));
+                                                    case
+                                                    "[]" :
+                                                      return _J.toList([]);}
+                                                   _E.Case($moduleName,"between lines 153 and 155");
+                                                 }();
+                                        });
+                  var repeatN = F2(function (n,elem)
+                                   {
+                                     return _U.cmp(n,0) > 0 ? {ctor: "::", _0: elem, _1: A2(repeatN,
+                                                                                            n - 1,
+                                                                                            elem)} : _J.toList([]);
+                                   });
+                  _op["!!"] = F2(function (lst,i)
+                                 {
+                                   return function ()
+                                          {
+                                            switch (lst.ctor)
+                                            {case
+                                             "::" :
+                                               return _U.cmp(i,0) < 1 ? lst._0 : A2(_op["!!"],
+                                                                                    lst._1,
+                                                                                    i - 1);}
+                                            _E.Case($moduleName,"between lines 144 and 145");
+                                          }();
+                                 });
+                  var applyUntil = F3(function (f,cond,init)
+                                      {
+                                        return cond(init) ? init : A3(applyUntil,f,cond,f(init));
+                                      });
+                  var iterateWhile = F3(function (f,cond,init)
+                                        {
+                                          return cond(init) ? {ctor: "::", _0: init, _1: A3(iterateWhile,
+                                                                                            f,
+                                                                                            cond,
+                                                                                            f(init))} : _J.toList([]);
+                                        });
+                  var applyN = F3(function (f,times,init)
+                                  {
+                                    return function ()
+                                           {
+                                             switch (times)
+                                             {case
+                                              0 :
+                                                return _J.toList([]);}
+                                             return {ctor: "::", _0: init, _1: A3(applyN,
+                                                                                  f,
+                                                                                  times - 1,
+                                                                                  f(init))};
+                                           }();
+                                  });
+                  var enumerate = function (lst)
+                                  {
+                                    return A2(List.zip,_L.range(0,List.length(lst) - 1),lst);
+                                  };
+                  var fromJust = function (_v7)
+                                 {
+                                   return function ()
+                                          {
+                                            switch (_v7.ctor)
+                                            {case
+                                             "Just" :
+                                               return _v7._0;}
+                                            _E.Case($moduleName,"on line 124, column 21 to 22");
+                                          }();
+                                 };
+                  var iterateOn = function (f)
+                                  {
+                                    return Signal.foldp(F2(function (a,b)
+                                                           {
+                                                             return f(b);
+                                                           }));
+                                  };
+                  var dropAbsent = F2(function (init,s)
+                                      {
+                                        return A2(Signal._op["<~"],
+                                                  fromJust,
+                                                  A3(Signal.keepIf,
+                                                     Maybe.isJust,
+                                                     Maybe.Just(init),
+                                                     s));
+                                      });
+                  var toggleOnce = A2(Signal.foldp,
+                                      F2(function (_v10,a)
+                                         {
+                                           return function ()
+                                                  {
+                                                    return true;
+                                                  }();
+                                         }),
+                                      false);
+                  var toggle = A2(Signal.foldp,
+                                  F2(function (_v12,a)
+                                     {
+                                       return function ()
+                                              {
+                                                return Basics.not(a);
+                                              }();
+                                     }),
+                                  false);
+                  var modCount = function (m)
+                                 {
+                                   return function ()
+                                          {
+                                            var add = F2(function (_v14,a)
+                                                         {
+                                                           return function ()
+                                                                  {
+                                                                    return A2(Basics.mod,a + 1,m);
+                                                                  }();
+                                                         });
+                                            return A2(Signal.foldp,add,0);
+                                          }();
+                                 };
+                  var muc = F4(function ($switch,init,a,b)
+                               {
+                                 return function ()
+                                        {
+                                          var currentB = A3(Signal.dropWhen,
+                                                            A2(Signal.sampleOn,b,$switch),
+                                                            init,
+                                                            b);
+                                          var currentA = A3(Signal.keepWhen,
+                                                            A2(Signal.sampleOn,a,$switch),
+                                                            init,
+                                                            a);
+                                          return A2(Signal.merge,currentA,currentB);
+                                        }();
+                               });
+                  var dropN = F2(function (n,sig)
+                                 {
+                                   return function ()
+                                          {
+                                            var clock = A2(Signal.dropIf,
+                                                           function (x)
+                                                           {
+                                                             return _U.cmp(x,n) < 0;
+                                                           },
+                                                           0)(Signal.count(sig));
+                                            return A2(Signal.sampleOn,clock,sig);
+                                          }();
+                                 });
+                  var keepN = F2(function (n,sig)
+                                 {
+                                   return function ()
+                                          {
+                                            var clock = A2(Signal.keepIf,
+                                                           function (x)
+                                                           {
+                                                             return _U.cmp(x,n) < 0;
+                                                           },
+                                                           0)(Signal.count(sig));
+                                            return A2(Signal.sampleOn,clock,sig);
+                                          }();
+                                 });
+                  var zipDict = F2(function (dictA,dictB)
+                                   {
+                                     return function ()
+                                            {
+                                              var insertCombined = function (k)
+                                                                   {
+                                                                     return A2(Dict.insert,
+                                                                               k,
+                                                                               {ctor: "_Tuple2", _0: fromJust(A2(Dict.lookup,
+                                                                                                                 k,
+                                                                                                                 dictA)), _1: fromJust(A2(Dict.lookup,
+                                                                                                                                          k,
+                                                                                                                                          dictB))});
+                                                                   };
+                                              var allKeys = Set.toList(A2(Set.intersect,
+                                                                          Set.fromList(Dict.keys(dictA)),
+                                                                          Set.fromList(Dict.keys(dictB))));
+                                              return A3(List.foldl,
+                                                        insertCombined,
+                                                        Dict.empty,
+                                                        allKeys);
+                                            }();
+                                   });
+                  var loadingAnimation = function (isVisible)
+                                         {
+                                           return function ()
+                                                  {
+                                                    var emptyForm = Graphics.Collage.group(_J.toList([]));
+                                                    var emptyFormSig = Signal.sampleOn(isVisible)(Signal.constant(emptyForm));
+                                                    var clock = A3(Signal.keepWhen,
+                                                                   isVisible,
+                                                                   Time.millisecond,
+                                                                   Time.fps(30));
+                                                    var angle = A2(Signal._op["<~"],
+                                                                   function ($)
+                                                                   {
+                                                                     return Basics.degrees(function (a)
+                                                                                           {
+                                                                                             return a * 1.5;
+                                                                                           }(Basics.toFloat($)));
+                                                                   },
+                                                                   A2(modCount,360,clock));
+                                                    var transform = function (i)
+                                                                    {
+                                                                      return A2(Transform2D.multiply,
+                                                                                Transform2D.rotation(Basics.degrees(i * 60)),
+                                                                                A2(Transform2D.translation,
+                                                                                   0,
+                                                                                   7));
+                                                                    };
+                                                    var singleton = function (x)
+                                                                    {
+                                                                      return _J.toList([x]);
+                                                                    };
+                                                    var mkcircle = function (i)
+                                                                   {
+                                                                     return Graphics.Collage.groupTransform(transform(i))(singleton(A2(Graphics.Collage.outlined,
+                                                                                                                                       Graphics.Collage.solid(Color.black),
+                                                                                                                                       Graphics.Collage.circle(2))));
+                                                                   };
+                                                    var circles = A2(List.map,
+                                                                     mkcircle,
+                                                                     _L.range(0,5));
+                                                    var rotateLoader = function (a)
+                                                                       {
+                                                                         return A2(Graphics.Collage.groupTransform,
+                                                                                   Transform2D.rotation(0 - a),
+                                                                                   circles);
+                                                                       };
+                                                    return A4(muc,
+                                                              isVisible,
+                                                              emptyForm,
+                                                              A2(Signal._op["<~"],
+                                                                 rotateLoader,
+                                                                 angle),
+                                                              emptyFormSig);
+                                                  }();
+                                         };
+                  var rangeList = F3(function (from,to,len)
+                                     {
+                                       return function ()
+                                              {
+                                                var mapFloatToRange = function (x)
+                                                                      {
+                                                                        return Basics.floor(x * Basics.toFloat(to - from + 1)) + from;
+                                                                      };
+                                                return A2(Signal._op["<~"],
+                                                          List.map(mapFloatToRange),
+                                                          Random.floatList(len));
+                                              }();
+                                     });
+                  var swap = F3(function (keyX,keyY,dct)
+                                {
+                                  return function ()
+                                         {
+                                           var valY = fromJust(A2(Dict.lookup,keyY,dct));
+                                           var valX = fromJust(A2(Dict.lookup,keyX,dct));
+                                           return A2(Dict.insert,keyX,valY)(A3(Dict.insert,
+                                                                               keyY,
+                                                                               valX,
+                                                                               dct));
+                                         }();
+                                });
+                  var shuffle = function (cards)
+                                {
+                                  return function ()
+                                         {
+                                           var applySwaps = function (cdict)
+                                                            {
+                                                              return function ($)
+                                                                     {
+                                                                       return A2(List.foldl,
+                                                                                 F2(function (x,y)
+                                                                                    {
+                                                                                      return x(y);
+                                                                                    }),
+                                                                                 cdict)(List.map(Basics.uncurry(swap))($));
+                                                                     };
+                                                            };
+                                           var floatToRange = function (_v16)
+                                                              {
+                                                                return function ()
+                                                                       {
+                                                                         switch (_v16.ctor)
+                                                                         {case
+                                                                          "_Tuple2" :
+                                                                            return {ctor: "_Tuple2", _0: _v16._0, _1: Basics.floor(_v16._1 * Basics.toFloat(_v16._0 + 1))};}
+                                                                         _E.Case($moduleName,
+                                                                                 "on line 20, column 31 to 63");
+                                                                       }();
+                                                              };
+                                           var cardCnt = A2(Signal._op["<~"],List.length,cards);
+                                           var swapPairs = A2(Signal._op["<~"],
+                                                              function ($)
+                                                              {
+                                                                return List.reverse(List.map(floatToRange)(enumerate($)));
+                                                              },
+                                                              Random.floatList(cardCnt));
+                                           var cardsDict = A2(Signal._op["<~"],
+                                                              function ($)
+                                                              {
+                                                                return Dict.fromList(enumerate($));
+                                                              },
+                                                              cards);
+                                           return A2(Signal._op["<~"],
+                                                     Dict.values,
+                                                     A2(Signal._op["~"],
+                                                        A2(Signal._op["<~"],applySwaps,cardsDict),
+                                                        swapPairs));
+                                         }();
+                                };
+                  _elm.Util.values = {_op: _op, shuffle: shuffle, swap: swap, rangeList: rangeList, loadingAnimation: loadingAnimation, zipDict: zipDict, keepN: keepN, dropN: dropN, muc: muc, modCount: modCount, toggle: toggle, toggleOnce: toggleOnce, dropAbsent: dropAbsent, iterateOn: iterateOn, fromJust: fromJust, enumerate: enumerate, applyN: applyN, iterateWhile: iterateWhile, applyUntil: applyUntil, repeatN: repeatN, combinations: combinations, least: least, greatest: greatest};
+                  return _elm.Util.values;
+                };</script></head><body><script type="text/javascript">Elm.fullscreen(Elm.Main)</script><noscript></noscript></body></html>
