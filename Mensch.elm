@@ -3,7 +3,7 @@ import Mouse--(clicks, position)
 import Window
 import Random
 
-import open GameLogic
+import GameLogic(..)
 import BoardDrawing(pLACESIZE, tokenCoord, drawGame)
 
 localHuman : (Float, Float) -> GameState -> InputCmd
