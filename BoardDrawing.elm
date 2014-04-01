@@ -1,6 +1,6 @@
 module BoardDrawing where
 
-import open GameLogic
+import GameLogic(..)
 import Util((!!), repeatN)
 
 --------------------------------------------------------------------------------
@@ -64,7 +64,6 @@ locationCoord (Location player rloc as loc) =
        | rloc >= bOARDSIZE -> (homeRowCoords !! player) !! (rloc - bOARDSIZE)
        | otherwise -> boardCoords !! absLoc loc
 
-
 tokenCoord : GameState -> Token -> Corner
 tokenCoord gs = locationCoord . getLocation gs
 
@@ -94,6 +93,8 @@ drawGame (w,h) gs = flow down <|
             ++ endGameBanner gs
             ++ [move (0, -boardDisplaySize / 2) <| toForm <| flow down <| map (text . toText) (take 1 gs.log)]
     ] -- ++ map (text . toText) (take 1 gs.log)
+
+text = centered
 
 endGameBanner gs = 
     case playersAtHome gs of
