@@ -42,5 +42,5 @@ main =
                     MoveToken _ -> logMsg "moving"
                     otherwise -> id
             in insertRandom <| execCmd cmd <| logCmd gs
-        game = logMsg "Click red tokens to play.\nClick anywhere to advance the AI" initGameState
-    in drawGame <~ Window.dimensions ~ foldp gameloop game ((,) <~ seed ~ click)
+        --game = logMsg "Click red tokens to play.\nClick anywhere to advance the AI" initGameState
+    in drawGame <~ Window.dimensions ~ foldp gameloop initGameState ((,) <~ seed ~ click)

@@ -91,7 +91,7 @@ drawGame (w,h) gs = flow down <|
             -- draw the die colored with the current player
             ++ [ scale 2 <| toForm <| text <| Text.color (playerColors!!gs.currentPlayer) <| toText <| show gs.die]
             ++ endGameBanner gs
-            ++ [move (0, -boardDisplaySize / 2) <| toForm <| flow down <| map (text . toText) (take 1 gs.log)]
+            -- ++ [move (0, -boardDisplaySize / 2) <| toForm <| flow down <| map (text . toText) (take 1 gs.log)]
     ] -- ++ map (text . toText) (take 1 gs.log)
 
 text = centered
