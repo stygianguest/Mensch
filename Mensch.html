@@ -111,9 +111,6 @@ Elm.Main.make = function (_elm)
                                       });
                   var main = function ()
                              {
-                               var game = A2(GameLogic.logMsg,
-                                             "Click red tokens to play.\nClick anywhere to advance the AI",
-                                             GameLogic.initGameState);
                                var gameloop = F2(function (_v19,gs)
                                                  {
                                                    return function ()
@@ -198,7 +195,7 @@ Elm.Main.make = function (_elm)
                                             Window.dimensions),
                                          A3(Signal.foldp,
                                             gameloop,
-                                            game,
+                                            GameLogic.initGameState,
                                             A2(Signal._op["~"],
                                                A2(Signal._op["<~"],
                                                   F2(function (v0,v1)
@@ -575,15 +572,7 @@ Elm.BoardDrawing.make = function (_elm)
                                                                                                                                                                                        _L.append(_J.toList([Graphics.Collage.scale(2)(Graphics.Collage.toForm(text(Text.color(A2(Util._op["!!"],
                                                                                                                                                                                                                                                                                  playerColors,
                                                                                                                                                                                                                                                                                  gs.currentPlayer))(Text.toText(String.show(gs.die))))))]),
-                                                                                                                                                                                                 _L.append(endGameBanner(gs),
-                                                                                                                                                                                                           _J.toList([Graphics.Collage.move({ctor: "_Tuple2", _0: 0, _1: (0 - boardDisplaySize) / 2})(Graphics.Collage.toForm(Graphics.Element.flow(Graphics.Element.down)(A2(List.map,
-                                                                                                                                                                                                                                                                                                                                                                              function ($)
-                                                                                                                                                                                                                                                                                                                                                                              {
-                                                                                                                                                                                                                                                                                                                                                                                return text(Text.toText($));
-                                                                                                                                                                                                                                                                                                                                                                              },
-                                                                                                                                                                                                                                                                                                                                                                              A2(List.take,
-                                                                                                                                                                                                                                                                                                                                                                                 1,
-                                                                                                                                                                                                                                                                                                                                                                                 gs.log)))))])))))))))]));}
+                                                                                                                                                                                                 endGameBanner(gs))))))))]));}
                                                        _E.Case($moduleName,
                                                                "between lines 79 and 95");
                                                      }();
