@@ -32,7 +32,9 @@ main =
         gameloop (rand,cpoint) gs = 
             let cmd = case gs.currentPlayer of
                         0 -> localHuman cpoint gs
-                        n -> computerPlayer eagerStrategy n gs
+                        1 -> computerPlayer (defensiveStyle >|> aggressiveStyle >|> eagerStrategy) 1 gs
+                        2 -> computerPlayer (aggressiveStyle >|> defensiveStyle >|> hedgeStrategy) 2 gs
+                        3 -> computerPlayer (defensiveStyle >|> aggressiveStyle >|> hedgeStrategy) 3 gs
                 insertRandom = case gs.currentPlayer of
                     0 -> id
                     n -> seedRand rand
@@ -42,11 +44,3 @@ main =
             in insertRandom <| execCmd cmd <| logCmd gs
         game = logMsg "Click red tokens to play.\nClick anywhere to advance the AI" initGameState
     in drawGame <~ Window.dimensions ~ foldp gameloop game ((,) <~ seed ~ click)
-
-
---aiPlayoff : [GameState -> InputCmd] -> Int -> Int -> [Player]
---aiPlayoff players rseed noGames =
---    let playTurn gs = execCmd ((players !! gs.currentPlayer) gs) gs
---        playOut = applyUntil playTurn (not . isEmpty . playersAtHome)
---        firstGame = seedRand rseed initGameState
---    in map (head . playersAtHome) <| applyN (playOut . newGame) noGames firstGame
